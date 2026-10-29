@@ -29,7 +29,7 @@ Build-time environment:
 - Languages: English at `/`, Turkish, Spanish, German, French and Portuguese under `/tr/`, `/es/`, `/de/`, `/fr/`, `/pt/`. UI copy is `defineDict(en, tr, { es, de, fr, pt })`; `src/lib/translations.test.ts` fails when anything is missing. Only English pages are indexed: translated pages carry `noindex` and the sitemap lists English URLs only.
 - `build/site.ts` writes one HTML page per tool and language (title, description, engine-chunk preloads), `sitemap.xml`, `robots.txt`, `manifest.webmanifest` (installable app, OS "Open with" file handlers) and `sw.js` (offline: app shell precached, engines cached on first use).
 - The app is cross-origin isolated (`COOP: same-origin`, `COEP: credentialless`) so multi-threaded WebAssembly works (ffmpeg, ONNX, LibRaw). Browsers without it fall back to single-threaded builds.
-- The ISNet background-removal model (Apache-2.0, ~88 MB) is served from our own origin: `scripts/fetch-model.mjs` runs before `dev` and `build`, downloads the pinned file once (SHA-256 checked, see `src/lib/ml/model.json`) into `public/models/` (git-ignored). Browsers cache it after the first use. Tesseract language files come from jsDelivr on first use. User files never leave the device.
+- Big runtime assets are served from our own origin, never from third parties at runtime: the ISNet background-removal model (Apache-2.0, ~88 MB) and the 16 Tesseract OCR language files (~34 MB). `scripts/fetch-assets.mjs` runs before `dev` and `build`, downloads each pinned file once (SHA-256 checked, see `src/lib/ml/model.json` and `src/lib/ml/tessdata.json`) into `public/models/` and `public/tessdata/` (git-ignored). Browsers cache them after first use. User files never leave the device.
 
 ## Deploy (Coolify + Railpack)
 

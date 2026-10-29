@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/models/
+public/tessdata/
 test-results/
 playwright-report/
 *.tsbuildinfo

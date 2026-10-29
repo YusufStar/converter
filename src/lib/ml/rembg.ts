@@ -14,7 +14,7 @@ export interface ModelInfo {
 
 /**
  * ISNet general-use (DIS weights, Apache-2.0; rembg's ONNX export) in fp16, 88 MB. Served from
- * our own origin: scripts/fetch-model.mjs downloads the pinned file (model.json, SHA-256 checked)
+ * our own origin: scripts/fetch-assets.mjs downloads the pinned file (model.json, SHA-256 checked)
  * into public/models/ before dev and build. Runs on WebGPU or multi-threaded wasm.
  * Rejected: the dynamic-int8 build of the same export (half the size, speckled masks) and
  * BiRefNet lite fp16 (MIT; fails on ORT 1.31's WebGPU kernels and runs out of memory on wasm).

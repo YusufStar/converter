@@ -1,0 +1,70 @@
+{
+  "dir": "tessdata/best_int-1.0.0",
+  "source": "https://cdn.jsdelivr.net/npm/@tesseract.js-data/{code}@1.0.0/4.0.0_best_int/{code}.traineddata.gz",
+  "files": {
+    "eng": {
+      "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91",
+      "bytes": 2952873
+    },
+    "tur": {
+      "sha256": "384ba0dc28040451b7818d7d60e0a88df0d3003fa5a01d713a468779bc3d8c04",
+      "bytes": 2141291
+    },
+    "deu": {
+      "sha256": "306c4280d0cbed46fbff727486bd43b92730181bae80f56941a091f363bdf28b",
+      "bytes": 1333102
+    },
+    "fra": {
+      "sha256": "d611139672b3752c7097e671e4a1d9209dfd37f2aeb081ef6487fba3351e9255",
+      "bytes": 707406
+    },
+    "spa": {
+      "sha256": "40be52f97b5d4eb7460073dc1f94cd546b27150333c0bf854ed7e7132db6bceb",
+      "bytes": 2100190
+    },
+    "por": {
+      "sha256": "dacebc1386ddaaf8389f81094236cca0d690897cde693d48cbdaa881c86e2b4c",
+      "bytes": 1392239
+    },
+    "ita": {
+      "sha256": "f702fcfad297ce028ede3626d1467b67939f23ff23595f9badd54681cf25a4d3",
+      "bytes": 1660998
+    },
+    "nld": {
+      "sha256": "a2d904b6ddc4feb0d31ecfcd7361a554102e7aa2e278c54f4fc029e0d0815571",
+      "bytes": 3005696
+    },
+    "pol": {
+      "sha256": "a20fdec4ff99d8f8e84c708da3e42a4e935c26863055a0ed88aef5c66a59b91b",
+      "bytes": 2642356
+    },
+    "rus": {
+      "sha256": "f51f5edc992249ff9b70a227b22f242dfa47b2b1bbc7ae0ea74908640c101f6a",
+      "bytes": 2679598
+    },
+    "ukr": {
+      "sha256": "ea2789a0ad99ff84bfd252a7410a1e8661a7bc5acaa41573d23b54b71446aa4c",
+      "bytes": 2114206
+    },
+    "ara": {
+      "sha256": "f4746c44b02342dd5b3d4f0198000f47d7c49f1a229e63e0f436c0592dcd9639",
+      "bytes": 1661906
+    },
+    "hin": {
+      "sha256": "f3b6a0d320df38d886178cdd727b90dbf9df3db053adb32bd9cf73f0463cda07",
+      "bytes": 1389692
+    },
+    "chi_sim": {
+      "sha256": "b8a23f10c7de500891eb458a8adc9cc58ab7f242f08b7d149f5e9aea4ad5db7c",
+      "bytes": 1718768
+    },
+    "jpn": {
+      "sha256": "2b63ebfbf1484de4a08ce53b29ef98a1c17658a93cbd38acb665d7d316d0be88",
+      "bytes": 2030256
+    },
+    "kor": {
+      "sha256": "78c21276ab14c9bb734d83be1055d9fe5469a4e7e977c51ad385be5737e61126",
+      "bytes": 1572336
+    }
+  }
+}

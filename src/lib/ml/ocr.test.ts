@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, PDFName, degrees } from "pdf-lib";
-import { addTextLayers, defaultLangs, ocrScale, textLayerPlacement, toPgm, workerCount, OCR_MAX_PIXELS } from "./ocr";
+import { addTextLayers, defaultLangs, ocrScale, textLayerPlacement, toPgm, workerCount, OCR_MAX_PIXELS, OCR_LANGS, langDataUrl } from "./ocr";
+import tessdata from "./tessdata.json";
 
 /** Applies a pdf-lib drawPage placement (translate, rotate CCW, scale) to a point of the embedded page. */
 function apply(p: ReturnType<typeof textLayerPlacement>, u: number, v: number) {
@@ -92,5 +93,17 @@ describe("sizing", () => {
     expect(defaultLangs("tr")).toEqual(["eng", "tur"]);
     expect(defaultLangs("zh-CN")).toEqual(["eng", "chi_sim"]);
     expect(defaultLangs("xx")).toEqual(["eng"]);
+  });
+});
+
+describe("language data", () => {
+  it("every language in the picker has a pinned file served from our own origin", () => {
+    for (const { code } of OCR_LANGS) {
+      const file = (tessdata.files as Record<string, { sha256: string; bytes: number }>)[code];
+      expect(file, code).toBeTruthy();
+      expect(file.sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(langDataUrl(code)).toBe(`/${tessdata.dir}/${code}.traineddata.gz`);
+    }
+    expect(Object.keys(tessdata.files).sort()).toEqual(OCR_LANGS.map((l) => l.code).sort());
   });
 });
