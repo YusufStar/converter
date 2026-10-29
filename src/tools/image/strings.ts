@@ -51,6 +51,7 @@ export const s = defineDict(
     favTransparent: "Transparent",
     favFill: "Fill colour",
     favMake: "Generate icons",
+    favName: "App name (for the manifest)",
     favIncludes: "Includes favicon.ico (16/32/48), PNGs 16–512, apple-touch-icon.png and site.webmanifest.",
     // gif maker
     gifDelay: "Frame delay",
@@ -139,6 +140,7 @@ export const s = defineDict(
     favTransparent: "Şeffaf",
     favFill: "Renkli",
     favMake: "İkonları üret",
+    favName: "Uygulama adı (manifest için)",
     favIncludes: "favicon.ico (16/32/48), 16–512 PNG'ler, apple-touch-icon.png ve site.webmanifest dahil.",
     gifDelay: "Kare süresi",
     gifSize: "En fazla genişlik",

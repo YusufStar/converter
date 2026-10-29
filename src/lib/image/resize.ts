@@ -95,5 +95,12 @@ export function targetSize(src: Size, o: ResizeOptions, vector = false): Size {
     w *= f;
     h *= f;
   }
-  return { width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)) };
+  let width = Math.max(1, Math.round(w));
+  let height = Math.max(1, Math.round(h));
+  // Rounding up can push a clamped size back over the limit.
+  if (width * height > MAX_AREA || Math.max(width, height) > MAX_SIDE) {
+    width = Math.max(1, Math.floor(w));
+    height = Math.max(1, Math.floor(h));
+  }
+  return { width, height };
 }

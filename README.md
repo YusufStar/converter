@@ -21,3 +21,18 @@ npm run build      # static site in dist/ (one HTML page per tool + sitemap.xml)
 - `src/lib/` — pure conversion logic (unit-tested)
 - `src/ui/` — shared kit: dropzone, queue, results (one-click download, ZIP for many)
 - `e2e/` — Playwright specs + fixtures
+
+## Deploy (Coolify + Railpack)
+
+Railpack detects the Vite SPA and serves `dist/` with Caddy.
+
+| Setting | Value |
+|---|---|
+| Build pack | Railpack, site type Dynamic |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| Start command | *(empty — otherwise Railpack skips the Caddy static server)* |
+| Exposed port | `80` (or set `PORT` and expose that) |
+| Health check | `/health` |
+
+No server, database or secrets: the output is a static site, so any static host works too (every tool also has its own `dist/<slug>/index.html`).

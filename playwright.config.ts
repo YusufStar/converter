@@ -4,6 +4,7 @@ const PORT = Number(process.env.PORT ?? 5180);
 
 export default defineConfig({
   testDir: "./e2e",
+  outputDir: process.env.PW_OUTPUT_DIR ?? "test-results",
   timeout: 180_000,
   expect: { timeout: 15_000 },
   fullyParallel: true,

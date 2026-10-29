@@ -1,0 +1,10 @@
+title = "Şehir rehberi"
+version = 3
+
+[owner]
+name = "Ayşe"
+city = "İstanbul"
+
+[[places]]
+name = "Galata"
+visits = 120

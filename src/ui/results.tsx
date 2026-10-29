@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Archive, Download, FileIcon, Loader2 } from "lucide-react";
 import { downloadBlob, downloadZip } from "../lib/download";
 import { formatBytes, sizeDelta } from "../lib/files";
 import { useT } from "../lib/i18n";
+import { useObjectUrl } from "../lib/use-object-url";
 import type { Output } from "../lib/use-queue";
 import { Button, cx } from "./kit";
 import { ui } from "./strings";
@@ -11,8 +12,7 @@ const IMAGE_PREVIEW = /^image\/(png|jpeg|webp|avif|gif|bmp|svg\+xml|x-icon|vnd\.
 
 function Preview({ output }: { output: Output }) {
   const show = IMAGE_PREVIEW.test(output.blob.type) && output.blob.size < 40e6;
-  const url = useMemo(() => (show ? URL.createObjectURL(output.blob) : null), [output.blob, show]);
-  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
+  const url = useObjectUrl(show ? output.blob : null);
   return (
     <span className="checker flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line">
       {url ? <img src={url} alt="" decoding="async" className="size-full object-contain" /> : <FileIcon className="size-5 text-muted" />}
@@ -51,7 +51,13 @@ export function Results({
 }) {
   const t = useT(ui);
   const [zipping, setZipping] = useState(false);
-  if (!outputs.length) return null;
+  const ref = useRef<HTMLElement>(null);
+  const has = outputs.length > 0;
+  // Bring fresh results into view (they sit below the settings on phones).
+  useEffect(() => {
+    if (has) ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [has]);
+  if (!has) return null;
 
   const total = outputs.reduce((a, o) => a + o.blob.size, 0);
   const many = outputs.length > 1;
@@ -66,10 +72,10 @@ export function Results({
   };
 
   return (
-    <section className="min-w-0 animate-rise rounded-2xl border border-line bg-surface" data-testid="results" aria-live="polite">
+    <section ref={ref} className="min-w-0 animate-rise scroll-mt-20 rounded-2xl border border-line bg-surface" data-testid="results" aria-live="polite">
       <header className="flex flex-col gap-3 border-b border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-sm font-semibold">
-          {t("results")} <span className="font-normal text-muted">· {t("filesCount", { n: outputs.length, size: formatBytes(total) })}</span>
+          {t("results")} <span className="font-normal text-muted">· {t(outputs.length === 1 ? "fileCountOne" : "filesCount", { n: outputs.length, size: formatBytes(total) })}</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {extra}
@@ -91,7 +97,7 @@ export function Results({
           <li key={o.id} className="flex min-w-0 items-center gap-3 px-3 py-2.5">
             <Preview output={o} />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-sm font-medium" title={o.name}>
+              <span className="line-clamp-2 text-sm font-medium break-all" title={o.name}>
                 {o.name}
               </span>
               <span className="flex flex-wrap gap-x-2 text-xs text-muted tabular-nums">

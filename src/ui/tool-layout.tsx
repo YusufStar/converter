@@ -46,7 +46,7 @@ export function ToolLayout({
         </div>
       </header>
 
-      <div className="grid min-w-0 gap-5 [grid-template-areas:'input'_'settings'_'results'] lg:grid-cols-[minmax(0,1fr)_340px] lg:[grid-template-areas:'input_settings'_'results_settings'] xl:grid-cols-[minmax(0,1fr)_368px]">
+      <div className="grid min-w-0 gap-5 [grid-template-areas:'input'_'settings'_'results'] lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'input_settings'_'results_settings'] xl:grid-cols-[minmax(0,1fr)_368px]">
         <div className="min-w-0 [grid-area:input]">{input}</div>
         {settings || action ? (
           <aside className="min-w-0 [grid-area:settings] lg:sticky lg:top-6 lg:self-start">
@@ -61,7 +61,7 @@ export function ToolLayout({
             </div>
           </aside>
         ) : null}
-        <div className="min-w-0 [grid-area:results] empty:hidden">{results}</div>
+        <div className="min-w-0 self-start [grid-area:results] empty:hidden">{results}</div>
       </div>
     </div>
   );
@@ -74,10 +74,13 @@ export function RunButton({
   label,
   disabled,
   status,
+  emptyLabel,
 }: {
   queue: Queue;
   onRun: () => void;
   label?: string;
+  /** Shown while nothing is queued (defaults to "Add files to start"). */
+  emptyLabel?: string;
   disabled?: boolean;
   /** Optional status line while busy, e.g. "Loading engine…". */
   status?: string | null;
@@ -99,7 +102,7 @@ export function RunButton({
       ) : (
         <Button variant="primary" size="lg" onClick={onRun} disabled={empty || disabled} data-testid="run">
           <Play className="size-4 fill-current" />
-          {empty ? t("addFilesFirst") : (label ?? t("convert"))}
+          {empty ? (emptyLabel ?? t("addFilesFirst")) : (label ?? t("convert"))}
         </Button>
       )}
       {queue.busy ? (

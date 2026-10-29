@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed lang="tr">
+  <entry id="1"><title>Kahvaltı</title><price>12.50</price></entry>
+  <entry id="2"><title>Çay &amp; simit</title><price>4</price></entry>
+</feed>

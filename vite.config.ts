@@ -46,7 +46,11 @@ function toolPages(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), toolPages()],
   // ffmpeg + squoosh codecs spawn workers / load wasm relative to their own files.
-  optimizeDeps: { exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util", "@jsquash/webp", "@jsquash/avif"] },
+  optimizeDeps: {
+    exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util", "@jsquash/webp", "@jsquash/avif"],
+    // Lazily imported libraries: pre-bundle them so first use in dev doesn't trigger a reload.
+    include: ["xlsx", "yaml", "smol-toml", "fflate", "pdf-lib", "@pdf-lib/fontkit", "pdfjs-dist", "mammoth", "marked", "turndown", "gifenc", "upng-js", "utif", "heic-to"],
+  },
   worker: { format: "es" },
   server: { port: 5180, strictPort: true },
   preview: { port: 5181, strictPort: true },

@@ -4,6 +4,9 @@ import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
   image: lazy(() => import("./image-tool")),
+  "image-pdf": lazy(() => import("./images-to-pdf-tool")),
+  "image-gif": lazy(() => import("./gif-maker-tool")),
+  "image-favicon": lazy(() => import("./favicon-tool")),
 };
 
 export const icons: IconMap = {

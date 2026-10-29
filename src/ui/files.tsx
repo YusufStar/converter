@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Check, FileIcon, GripVertical, Loader2, Plus, Upload, X } from "lucide-react";
 import { formatBytes, matchesAccept } from "../lib/files";
 import { useT } from "../lib/i18n";
+import { useObjectUrl } from "../lib/use-object-url";
 import type { Queue, QueueItem } from "../lib/use-queue";
 import { Button, IconButton, ProgressBar, cx } from "./kit";
 import { ui } from "./strings";
@@ -131,16 +132,10 @@ export function Dropzone({
   );
 }
 
-function useObjectUrl(file: File, enabled: boolean) {
-  const url = useMemo(() => (enabled ? URL.createObjectURL(file) : null), [file, enabled]);
-  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
-  return url;
-}
-
 const PREVIEWABLE = /^image\/(png|jpe?g|webp|avif|gif|bmp|svg\+xml|x-icon|vnd\.microsoft\.icon)$/;
 
 function Thumb({ file }: { file: File }) {
-  const url = useObjectUrl(file, PREVIEWABLE.test(file.type));
+  const url = useObjectUrl(PREVIEWABLE.test(file.type) ? file : null);
   const [broken, setBroken] = useState(false);
   return (
     <span className="checker flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line">
@@ -172,7 +167,7 @@ export function QueueList({ queue, reorderable = false }: { queue: Queue; reorde
     <div className="min-w-0 rounded-2xl border border-line bg-surface">
       <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <h2 className="truncate text-sm font-semibold">
-          {t("files")} <span className="font-normal text-muted">· {t("filesCount", { n: queue.items.length, size: formatBytes(total) })}</span>
+          {t("files")} <span className="font-normal text-muted">· {t(queue.items.length === 1 ? "fileCountOne" : "filesCount", { n: queue.items.length, size: formatBytes(total) })}</span>
         </h2>
         <Button size="sm" variant="ghost" onClick={queue.clear} disabled={queue.busy}>
           <X className="size-3.5" />
@@ -196,7 +191,7 @@ export function QueueList({ queue, reorderable = false }: { queue: Queue; reorde
             {reorderable ? <span className="w-5 shrink-0 text-center font-mono text-xs text-muted">{i + 1}</span> : null}
             <Thumb file={item.file} />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate text-sm font-medium" title={item.file.name}>
+              <span className="line-clamp-2 text-sm font-medium break-all" title={item.file.name}>
                 {item.file.name}
               </span>
               {item.status === "working" ? (

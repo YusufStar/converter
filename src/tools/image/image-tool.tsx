@@ -33,7 +33,7 @@ export function ResizeSection({ value, onChange, vector }: { value: ResizeOption
         label={t("resize")}
         value={value.mode}
         onChange={(mode) => set({ mode })}
-        columns={4}
+        columns={2}
         size="sm"
         options={[
           { value: "original", label: t("original") },
