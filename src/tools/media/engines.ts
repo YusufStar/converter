@@ -1,12 +1,12 @@
-import { lazy } from "react";
+import { lazyEngine } from "../../lib/lazy-engine";
 import { AudioLines, Clapperboard, FileAudio, FileVideo, GalleryHorizontalEnd, ImagePlay, Music, Scissors, Shrink, VolumeX } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
-  "media-video": lazy(() => import("./video-tool")),
-  "media-audio": lazy(() => import("./audio-tool")),
-  "media-trim": lazy(() => import("./trim-tool")),
-  "media-frames": lazy(() => import("./frames-tool")),
+  "media-video": lazyEngine(() => import("./video-tool")),
+  "media-audio": lazyEngine(() => import("./audio-tool")),
+  "media-trim": lazyEngine(() => import("./trim-tool")),
+  "media-frames": lazyEngine(() => import("./frames-tool")),
 };
 
 export const icons: IconMap = {

@@ -5,7 +5,8 @@ import { decodeText } from "../../lib/data/csv";
 import { DATA_FORMATS, convertData, formatFromName, stringifyData, type DataFormat, type Indent } from "../../lib/data/structured";
 import { downloadBlob } from "../../lib/download";
 import { splitName } from "../../lib/files";
-import { useT } from "../../lib/i18n";
+import { useLang, useT } from "../../lib/i18n";
+import { localeOf } from "../../lib/langs";
 import { errorMessage, useQueue } from "../../lib/use-queue";
 import { FileInput } from "../../ui/files";
 import { Button, Field, IconButton, Segmented, Switch, TextArea } from "../../ui/kit";
@@ -39,6 +40,7 @@ type Out = { text: string; error: null } | { text: null; error: string };
 
 export default function DataFormatTool({ meta }: EngineProps) {
   const t = useT(s);
+  const locale = localeOf(useLang());
   const tu = useT(ui);
   const preset = (meta.preset ?? {}) as Preset;
   const formatter = !!preset.formatter;
@@ -173,7 +175,7 @@ export default function DataFormatTool({ meta }: EngineProps) {
     <p className="flex items-center gap-1.5 text-xs text-ok" data-testid="paste-valid">
       <CircleCheck className="size-3.5" />
       {t("valid", { format: fromLabel })}
-      <span className="text-muted tabular-nums">· {t("chars", { n: text.length.toLocaleString() })}</span>
+      <span className="text-muted tabular-nums">· {t("chars", { n: text.length.toLocaleString(locale) })}</span>
     </p>
   ) : null;
 

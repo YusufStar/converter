@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Info } from "lucide-react";
 import type { EngineProps } from "../../engines";
-import { useT } from "../../lib/i18n";
+import { useLang, useT } from "../../lib/i18n";
+import { localeOf } from "../../lib/langs";
 import {
   TABLE_ACCEPT,
   TABLE_FORMATS,
@@ -37,6 +38,7 @@ interface PreviewSheet {
 
 function Preview({ sheets, header }: { sheets: PreviewSheet[]; header: boolean }) {
   const t = useT(s);
+  const locale = localeOf(useLang());
   const [index, setIndex] = useState(0);
   const cur = sheets[Math.min(index, sheets.length - 1)];
   if (!cur) return null;
@@ -47,7 +49,7 @@ function Preview({ sheets, header }: { sheets: PreviewSheet[]; header: boolean }
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h3 className="text-[13px] font-semibold">{t("preview")}</h3>
         <span className="text-xs text-muted tabular-nums">
-          {cur.total > cur.rows.length ? t("previewRows", { shown: cur.rows.length, total: cur.total.toLocaleString() }) : t("previewAll", { total: cur.total.toLocaleString() })}
+          {cur.total > cur.rows.length ? t("previewRows", { shown: cur.rows.length, total: cur.total.toLocaleString(locale) }) : t("previewAll", { total: cur.total.toLocaleString(locale) })}
         </span>
       </div>
       {sheets.length > 1 ? (
@@ -99,6 +101,7 @@ function Preview({ sheets, header }: { sheets: PreviewSheet[]; header: boolean }
 
 export default function SpreadsheetTool({ meta }: EngineProps) {
   const t = useT(s);
+  const locale = localeOf(useLang());
   const preset = (meta.preset ?? {}) as Preset;
   const queue = useQueue();
   const [o, setO] = useState<TableOptions>(() => ({
@@ -144,7 +147,7 @@ export default function SpreadsheetTool({ meta }: EngineProps) {
       }));
       setPreview(found.flat().filter(Boolean).slice(0, 12));
       // Size deltas between formats (CSV vs XLSX) mean nothing, so no sourceSize.
-      return outputs.map((out) => ({ name: out.name, blob: out.blob, sourceSize: undefined, note: t("rowsNote", { n: out.rows.toLocaleString() }) }));
+      return outputs.map((out) => ({ name: out.name, blob: out.blob, sourceSize: undefined, note: t("rowsNote", { n: out.rows.toLocaleString(locale) }) }));
     }, 2);
   };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gzipSync, zipSync } from "fflate";
-import { cleanPath, extractArchive, gunzipBytes, gunzipName, gzipBytes, gzipHeaderName, unzipEntries, untar, zipEntries } from "./archive";
+import { buildTree, canExtractFast, cleanPath, extractArchive, gunzipBytes, gunzipName, gzipBytes, gzipHeaderName, isJunk, isPlainZip, unzipEntries, untar, zipEntries } from "./archive";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const dec = (b: Uint8Array) => new TextDecoder().decode(b);
@@ -132,5 +132,42 @@ describe("tar", () => {
 
   it("applies the size limit", () => {
     expect(() => untar(archive(), 1000)).toThrow(/over the safety limit/);
+  });
+});
+
+describe("routing and tree", () => {
+  it("sends only plain ZIP / GZIP / TAR down the fast path", () => {
+    expect(canExtractFast("a.zip", zipSync({ "a.txt": enc("a") }))).toBe(true);
+    // Flip the "encrypted" flag in the central directory.
+    const locked = zipSync({ "a.txt": enc("a") });
+    const v = new DataView(locked.buffer);
+    for (let i = 0; i < locked.length - 4; i++) if (v.getUint32(i, true) === 0x02014b50) v.setUint16(i + 8, 1, true);
+    expect(isPlainZip(locked)).toBe(false);
+    expect(canExtractFast("a.gz", gzipSync(enc("x")))).toBe(true);
+    expect(canExtractFast("a.tar", tar([{ name: "a.txt", data: enc("a") }]))).toBe(true);
+    expect(canExtractFast("a.7z", new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]))).toBe(false);
+    expect(canExtractFast("a.rar", enc("Rar!\u001a\u0007\u0000"))).toBe(false);
+  });
+
+  it("treats AppleDouble files as junk", () => {
+    expect(isJunk("docs/._readme.md")).toBe(true);
+    expect(isJunk("._x")).toBe(true);
+    expect(isJunk("docs/readme._md")).toBe(false);
+  });
+
+  it("builds a folders-first tree with totals", () => {
+    const tree = buildTree([
+      { path: "b.txt", size: 1 },
+      { path: "docs/z.md", size: 2 },
+      { path: "docs/img/a.png", size: 3, encrypted: true },
+      { path: "a.txt", size: 4 },
+    ]);
+    expect(tree.map((n) => [n.name, n.size, n.files])).toEqual([
+      ["docs", 5, 2],
+      ["a.txt", 4, 1],
+      ["b.txt", 1, 1],
+    ]);
+    expect(tree[0].children!.map((n) => n.path)).toEqual(["docs/img", "docs/z.md"]);
+    expect(tree[0].children![0].children![0]).toMatchObject({ path: "docs/img/a.png", encrypted: true });
   });
 });

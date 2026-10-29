@@ -10,6 +10,7 @@ import { Results } from "../../ui/results";
 import { RunButton, ToolLayout } from "../../ui/tool-layout";
 import { Hint, PDF_ACCEPT, pdfBlob } from "./common";
 import { s } from "./strings";
+import { ErrorText } from "../../ui/error-text";
 
 const BLANK: PdfMeta = { title: "", author: "", subject: "", keywords: "", creator: "", producer: "" };
 
@@ -46,7 +47,7 @@ export default function MetadataTool({ meta: tool }: EngineProps) {
     <Hint>{t("metaEmpty")}</Hint>
   ) : error ? (
     <p className="rounded-lg bg-err/10 px-3 py-2 text-xs text-err" role="alert">
-      {error}
+      <ErrorText message={error} files={[file]} />
     </p>
   ) : !meta ? (
     <p className="flex items-center gap-2 text-xs text-muted">

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate";
-import { normalize, searchTools, TOOLS, toolBySlug } from "../catalog";
+import { normalize, relatedTools, searchTools, TOOLS, toolBySlug, toolsAccepting } from "../catalog";
 import { zipBlobs } from "./download";
 import { formatBytes, matchesAccept, sizeDelta, splitName, uniqueNames, withExt } from "./files";
 import { defineDict, format } from "./i18n";
 import { mapPool } from "./pool";
-import { slugFromPath } from "./router";
+import { extensionsOf } from "./handoff";
+import { localize, slugFromPath, splitPath } from "./router";
 
 describe("files", () => {
   it("formats bytes", () => {
@@ -58,9 +59,9 @@ describe("i18n", () => {
     expect(format("{n} files · {size}", { n: 3, size: "1 MB" })).toBe("3 files · 1 MB");
     expect(format("keep {unknown}", {})).toBe("keep {unknown}");
   });
-  it("defineDict keeps both languages", () => {
-    const d = defineDict({ a: "A" }, { a: "Ä" });
-    expect(d.tr.a).toBe("Ä");
+  it("defineDict keeps every language", () => {
+    const d = defineDict({ a: "A" }, { a: "Ä" }, { es: { a: "Á" }, de: { a: "Ö" }, fr: { a: "À" }, pt: { a: "Ã" } });
+    expect([d.en.a, d.tr.a, d.es.a, d.de.a, d.fr.a, d.pt.a]).toEqual(["A", "Ä", "Á", "Ö", "À", "Ã"]);
   });
 });
 
@@ -68,6 +69,18 @@ describe("router", () => {
   it("reads the slug", () => {
     expect(slugFromPath("/")).toBe("");
     expect(slugFromPath("/webp-converter/")).toBe("webp-converter");
+    expect(slugFromPath("/tr/webp-converter")).toBe("webp-converter");
+    expect(slugFromPath("/tr")).toBe("");
+  });
+  it("keeps the language in the path prefix", () => {
+    expect(splitPath("/tr/merge-pdf")).toEqual({ lang: "tr", rest: "/merge-pdf" });
+    expect(splitPath("/merge-pdf")).toEqual({ lang: "en", rest: "/merge-pdf" });
+    expect(splitPath("/en/merge-pdf")).toEqual({ lang: "en", rest: "/en/merge-pdf" });
+    expect(splitPath("/")).toEqual({ lang: "en", rest: "/" });
+    expect(localize("/merge-pdf", "tr")).toBe("/tr/merge-pdf");
+    expect(localize("/tr/merge-pdf", "en")).toBe("/merge-pdf");
+    expect(localize("/", "tr")).toBe("/tr");
+    expect(localize("/tr", "en")).toBe("/");
   });
 });
 
@@ -85,6 +98,26 @@ describe("catalog", () => {
     expect(searchTools("gorsel donustur").map((t) => t.slug)).toContain("image-converter");
     expect(searchTools("heic jpg").map((t) => t.slug)).toContain("heic-converter");
     expect(toolBySlug.get("images-to-pdf")?.group).toBe("pdf");
+  });
+  it("preset pages point at a real parent with the same engine", () => {
+    for (const t of TOOLS.filter((x) => x.parent)) {
+      const parent = toolBySlug.get(t.parent!);
+      expect(parent, t.slug).toBeTruthy();
+      expect(parent!.parent, `${t.slug}: parent must be a main tool`).toBeUndefined();
+      expect(t.engine, t.slug).toBe(parent!.engine);
+    }
+    expect(relatedTools(toolBySlug.get("png-to-jpg")!).map((t) => t.slug)).toContain("jpg-converter");
+    expect(relatedTools(toolBySlug.get("jpg-converter")!).map((t) => t.slug)).toContain("png-to-jpg");
+  });
+  it("input extensions are bare lowercase and route files to tools", () => {
+    for (const t of TOOLS) for (const ext of t.input ?? []) expect(ext, t.slug).toMatch(/^[a-z0-9]+$/);
+    expect(extensionsOf([{ name: "a.PDF" }, { name: "b.pdf" }, { name: "noext" }])).toEqual(["pdf"]);
+    const forPdf = toolsAccepting(["pdf"]).map((t) => t.slug);
+    expect(forPdf).toContain("merge-pdf");
+    expect(forPdf).not.toContain("webp-converter");
+    expect(forPdf.some((s) => toolBySlug.get(s)!.parent)).toBe(false);
+    expect(toolsAccepting(["pdf", "docx"])).toEqual([]);
+    expect(toolsAccepting([])).toEqual([]);
   });
 });
 

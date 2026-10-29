@@ -1,10 +1,10 @@
 import { splitName } from "../files";
 import { imagesToPdf, type PdfLayoutOptions } from "../pdf/images-to-pdf";
 import { decodeImage, decodeSvg, type Decoded } from "./decode";
-import { canvasToBlob, encodeCanvas, type EncodeOptions } from "./encode";
+import { canvasToBlob, ctx2d, encodeCanvas, makeCanvas, type AnyCanvas, type EncodeOptions } from "./encode";
 import { FORMATS, inputKind, resolveFormat, type ImageFormat, type OutputFormat } from "./formats";
 import { jpegOrientation, jpegSize } from "./jpeg";
-import { DEFAULT_RESIZE, targetSize, type ResizeOptions } from "./resize";
+import { DEFAULT_RESIZE, targetSize, type ResizeOptions, type Size } from "./resize";
 import { sizeSvg, svgIntrinsicSize } from "./svg";
 
 export type Rotation = 0 | 90 | 180 | 270;
@@ -46,10 +46,8 @@ function drawResampled(ctx: CanvasRenderingContext2D, src: Decoded, dx: number, 
   while (cw / 2 >= dw && ch / 2 >= dh && cw > 2 && ch > 2) {
     const nw = Math.max(dw, Math.round(cw / 2));
     const nh = Math.max(dh, Math.round(ch / 2));
-    const step = document.createElement("canvas");
-    step.width = nw;
-    step.height = nh;
-    const sctx = step.getContext("2d")!;
+    const step = makeCanvas(nw, nh);
+    const sctx = ctx2d(step);
     sctx.imageSmoothingQuality = "high";
     sctx.drawImage(cur, 0, 0, nw, nh);
     cur = step;
@@ -61,27 +59,42 @@ function drawResampled(ctx: CanvasRenderingContext2D, src: Decoded, dx: number, 
   ctx.drawImage(cur, dx, dy, dw, dh);
 }
 
-/**
- * Decodes `file` and draws it resized/rotated/flipped onto a new canvas.
- * SVGs are re-sized as vectors before rasterising, so any scale stays crisp.
- */
-export async function renderToCanvas(file: File, o: RenderOptions, forceBackground?: string): Promise<HTMLCanvasElement> {
-  let decoded: Decoded;
-  let size: { width: number; height: number };
+/** Decodes `file` at its target size. SVGs are re-sized as vectors before rasterising, so any scale stays crisp. */
+async function decodeSized(file: File, resize: ResizeOptions): Promise<{ decoded: Decoded; size: Size }> {
   if (inputKind(file) === "svg") {
     const text = await file.text();
-    size = targetSize(svgIntrinsicSize(text), o.resize, true);
-    decoded = await decodeSvg(sizeSvg(text, size.width, size.height), size.width, size.height);
-  } else {
-    decoded = await decodeImage(file);
-    size = targetSize({ width: decoded.width, height: decoded.height }, o.resize);
+    const size = targetSize(svgIntrinsicSize(text), resize, true);
+    return { decoded: await decodeSvg(sizeSvg(text, size.width, size.height), size.width, size.height), size };
   }
+  const decoded = await decodeImage(file);
+  return { decoded, size: targetSize({ width: decoded.width, height: decoded.height }, resize) };
+}
+
+/**
+ * SVG rasterised on the main thread (it needs the DOM) at the size `resize` gives it,
+ * ready to be transferred to an image worker as `pre`.
+ */
+export async function rasterizeSvg(file: File, resize: ResizeOptions): Promise<ImageBitmap> {
+  const { decoded, size } = await decodeSized(file, resize);
+  try {
+    const c = makeCanvas(size.width, size.height);
+    ctx2d(c).drawImage(decoded.source, 0, 0, size.width, size.height);
+    return await createImageBitmap(c);
+  } finally {
+    decoded.close();
+  }
+}
+
+/**
+ * Decodes `file` and draws it resized/rotated/flipped onto a new canvas (an OffscreenCanvas inside workers).
+ * `pre` is an already decoded source at its final size (an SVG rasterised by rasterizeSvg).
+ */
+async function render(file: File, o: RenderOptions, forceBackground?: string, pre?: Decoded): Promise<{ canvas: AnyCanvas; via: Decoded["via"] }> {
+  const { decoded, size } = pre ? { decoded: pre, size: { width: pre.width, height: pre.height } } : await decodeSized(file, o.resize);
   try {
     const turned = o.rotate === 90 || o.rotate === 270;
-    const canvas = document.createElement("canvas");
-    canvas.width = turned ? size.height : size.width;
-    canvas.height = turned ? size.width : size.height;
-    const ctx = canvas.getContext("2d")!;
+    const canvas = makeCanvas(turned ? size.height : size.width, turned ? size.width : size.height);
+    const ctx = ctx2d(canvas);
     const bg = forceBackground ?? o.background;
     if (bg) {
       ctx.fillStyle = bg;
@@ -92,15 +105,20 @@ export async function renderToCanvas(file: File, o: RenderOptions, forceBackgrou
     ctx.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1);
     drawResampled(ctx, decoded, -size.width / 2, -size.height / 2, size.width, size.height);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    return canvas;
+    return { canvas, via: decoded.via };
   } finally {
     decoded.close();
   }
 }
 
-const LOSSY: ImageFormat[] = ["jpg", "webp", "avif", "pdf"];
+/** Main-thread renderer (DOM canvas). */
+export async function renderToCanvas(file: File, o: RenderOptions, forceBackground?: string, pre?: Decoded): Promise<HTMLCanvasElement> {
+  return (await render(file, o, forceBackground, pre)).canvas as HTMLCanvasElement;
+}
 
-async function encodePdf(canvas: HTMLCanvasElement, quality: number, layout?: PdfLayoutOptions): Promise<Blob> {
+const LOSSY: ImageFormat[] = ["jpg", "webp", "avif", "jxl", "pdf"];
+
+async function encodePdf(canvas: AnyCanvas, quality: number, layout?: PdfLayoutOptions): Promise<Blob> {
   const jpg = await canvasToBlob(canvas, "image/jpeg", quality / 100);
   const bytes = await imagesToPdf(
     [{ bytes: new Uint8Array(await jpg.arrayBuffer()), kind: "jpg", width: canvas.width, height: canvas.height }],
@@ -109,12 +127,12 @@ async function encodePdf(canvas: HTMLCanvasElement, quality: number, layout?: Pd
   return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
 
-async function encodeAt(canvas: HTMLCanvasElement, format: ImageFormat, o: EncodeOptions): Promise<Blob> {
+async function encodeAt(canvas: AnyCanvas, format: ImageFormat, o: EncodeOptions): Promise<Blob> {
   return format === "pdf" ? encodePdf(canvas, o.quality) : encodeCanvas(canvas, format, o);
 }
 
 /** Highest quality whose output fits `limit` bytes (binary search), or the smallest possible. */
-async function fitToSize(canvas: HTMLCanvasElement, format: ImageFormat, o: EncodeOptions, limit: number): Promise<{ blob: Blob; missed: boolean }> {
+async function fitToSize(canvas: AnyCanvas, format: ImageFormat, o: EncodeOptions, limit: number): Promise<{ blob: Blob; missed: boolean }> {
   if (format === "png") {
     let last: Blob | null = null;
     for (const colors of [0, 256, 128, 64, 32, 16, 8]) {
@@ -148,13 +166,15 @@ export interface ConvertedImage {
   height: number;
   /** A target size was requested but even the lowest quality is larger. */
   targetMissed: boolean;
+  /** Camera RAW only: which decoder produced the pixels. */
+  via?: Decoded["via"];
 }
 
-export async function convertImage(file: File, o: ImageOptions): Promise<ConvertedImage> {
+export async function convertImage(file: File, o: ImageOptions, pre?: Decoded): Promise<ConvertedImage> {
   const format = resolveFormat(o.format, file);
   const info = FORMATS[format];
   // Formats without alpha get a background (white unless the user picked one).
-  const canvas = await renderToCanvas(file, o, info.alpha ? undefined : (o.background ?? "#ffffff"));
+  const { canvas, via } = await render(file, o, info.alpha ? undefined : (o.background ?? "#ffffff"), pre);
   try {
     let result: { blob: Blob; missed: boolean };
     if (o.targetKB && o.targetKB > 0 && (LOSSY.includes(format) || format === "png")) {
@@ -168,6 +188,7 @@ export async function convertImage(file: File, o: ImageOptions): Promise<Convert
       width: canvas.width,
       height: canvas.height,
       targetMissed: result.missed,
+      via,
     };
   } finally {
     canvas.width = canvas.height = 0; // free the backing store right away
@@ -189,6 +210,7 @@ export async function prepareForPdf(
   file: File,
   quality: "original" | number,
   resize: ResizeOptions = DEFAULT_RESIZE,
+  pre?: Decoded,
 ): Promise<{ bytes: Uint8Array; kind: "jpg" | "png"; width: number; height: number }> {
   const untouched = quality === "original" && resize.mode === "original";
   if (untouched && /^image\/(jpeg|png)$/.test(file.type)) {
@@ -202,9 +224,9 @@ export async function prepareForPdf(
       if (size) return { bytes, kind: "png", ...size };
     }
   }
-  const canvas = await renderToCanvas(file, { resize, rotate: 0, flipH: false, flipV: false, background: null });
+  const { canvas } = await render(file, { resize, rotate: 0, flipH: false, flipV: false, background: null }, undefined, pre);
   try {
-    const ctx = canvas.getContext("2d")!;
+    const ctx = ctx2d(canvas);
     const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let alpha = false;
     for (let i = 3; i < data.length; i += 4) if (data[i] < 255) { alpha = true; break; }

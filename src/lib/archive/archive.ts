@@ -27,8 +27,8 @@ export function cleanPath(p: string): string {
     .join("/");
 }
 
-/** macOS resource forks and Finder files are noise for everyone else. */
-const isJunk = (path: string) => path.startsWith("__MACOSX/") || /(^|\/)\.DS_Store$/.test(path);
+/** macOS resource forks, AppleDouble "._" twins and Finder files are noise for everyone else. */
+export const isJunk = (path: string) => path.startsWith("__MACOSX/") || /(^|\/)(\.DS_Store|\._[^/]*)$/.test(path);
 
 // ---------- ZIP ----------
 
@@ -175,6 +175,36 @@ export function untar(b: Uint8Array, limit = MAX_UNPACKED): Entry[] {
   return out;
 }
 
+/**
+ * True when every entry of the ZIP is stored or deflated and none is encrypted — the formats
+ * fflate handles. ZIP64, AES/ZipCrypto, Deflate64, BZIP2, LZMA… go to libarchive instead.
+ */
+export function isPlainZip(b: Uint8Array): boolean {
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  for (let i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) {
+    if (v.getUint32(i, true) !== 0x06054b50) continue;
+    const count = v.getUint16(i + 10, true);
+    let p = v.getUint32(i + 16, true);
+    if (count === 0xffff || p === 0xffffffff) return false;
+    for (let k = 0; k < count; k++) {
+      if (p + 46 > b.length || v.getUint32(p, true) !== 0x02014b50) return false;
+      const flags = v.getUint16(p + 8, true);
+      const method = v.getUint16(p + 10, true);
+      if (flags & 1 || (method !== 0 && method !== 8)) return false;
+      p += 46 + v.getUint16(p + 28, true) + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+    }
+    return true;
+  }
+  return false;
+}
+
+/** ZIP (plain), GZIP and TAR take the fast fflate path; everything else needs libarchive. */
+export function canExtractFast(name: string, b: Uint8Array): boolean {
+  if (b[0] === 0x50 && b[1] === 0x4b) return isPlainZip(b);
+  if (b[0] === 0x1f && b[1] === 0x8b) return true;
+  return isTar(b) || splitName(name).ext === "tar";
+}
+
 /** ZIP, TAR, TAR.GZ / TGZ, or a single .gz file → entries. */
 export async function extractArchive(name: string, bytes: Uint8Array, limit = MAX_UNPACKED): Promise<Entry[]> {
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) return unzipEntries(bytes, limit);
@@ -185,4 +215,44 @@ export async function extractArchive(name: string, bytes: Uint8Array, limit = MA
   }
   if (isTar(bytes) || splitName(name).ext === "tar") return untar(bytes, limit);
   throw new Error("Unsupported archive. Use ZIP, TAR, TAR.GZ / TGZ or GZ.");
+}
+
+// ---------- Tree ----------
+
+export interface TreeNode {
+  name: string;
+  /** Full path; folders have no trailing slash. */
+  path: string;
+  size: number;
+  /** Files inside (1 for a file). */
+  files: number;
+  encrypted?: boolean;
+  /** Present on folders. */
+  children?: TreeNode[];
+}
+
+/** Flat "a/b/c.txt" paths → folders (first, A→Z) and files (A→Z) with folder totals. */
+export function buildTree(entries: { path: string; size: number; encrypted?: boolean }[]): TreeNode[] {
+  const root: TreeNode = { name: "", path: "", size: 0, files: 0, children: [] };
+  for (const e of entries) {
+    const parts = e.path.split("/");
+    let dir = root;
+    dir.size += e.size;
+    dir.files++;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const path = parts.slice(0, i + 1).join("/");
+      let next = dir.children!.find((c) => c.children && c.name === parts[i]);
+      if (!next) dir.children!.push((next = { name: parts[i], path, size: 0, files: 0, children: [] }));
+      next.size += e.size;
+      next.files++;
+      dir = next;
+    }
+    dir.children!.push({ name: parts[parts.length - 1], path: e.path, size: e.size, files: 1, encrypted: e.encrypted });
+  }
+  const sort = (nodes: TreeNode[]) => {
+    nodes.sort((a, b) => Number(!a.children) - Number(!b.children) || a.name.localeCompare(b.name, "en", { numeric: true }));
+    for (const n of nodes) if (n.children) sort(n.children);
+    return nodes;
+  };
+  return sort(root.children!);
 }

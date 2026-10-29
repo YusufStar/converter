@@ -6,6 +6,7 @@ import { useT } from "../lib/i18n";
 import { useObjectUrl } from "../lib/use-object-url";
 import type { Output } from "../lib/use-queue";
 import { Button, cx } from "./kit";
+import { OpenIn } from "./open-in";
 import { ui } from "./strings";
 
 const IMAGE_PREVIEW = /^image\/(png|jpeg|webp|avif|gif|bmp|svg\+xml|x-icon|vnd\.microsoft\.icon)$/;
@@ -79,6 +80,7 @@ export function Results({
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {extra}
+          <OpenIn outputs={outputs} />
           {many ? (
             <Button variant="primary" onClick={zipAll} disabled={zipping} data-testid="download-all">
               {zipping ? <Loader2 className="size-4 animate-spin" /> : <Archive className="size-4" />}

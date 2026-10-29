@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
-import { Loader2, Play, Square } from "lucide-react";
-import { GROUPS, type ToolMeta } from "../catalog";
+import { Loader2, Play, Square, Star } from "lucide-react";
+import { GROUPS, relatedTools, type ToolMeta } from "../catalog";
 import { useLang, useT } from "../lib/i18n";
+import { toggleFavorite, useFavorites } from "../lib/prefs";
 import type { Queue } from "../lib/use-queue";
 import { ToolIcon } from "../icons";
-import { Button, FormatChip, ProgressBar } from "./kit";
+import { ErrorText } from "./error-text";
+import { Button, FormatChip, IconButton, ProgressBar, cx } from "./kit";
+import { Link } from "./link";
 import { ui } from "./strings";
 
 /**
@@ -28,11 +31,13 @@ export function ToolLayout({
   const lang = useLang();
   const t = useT(ui);
   const group = GROUPS.find((g) => g.id === meta.group);
+  const fav = useFavorites().includes(meta.slug);
+  const related = relatedTools(meta);
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <header className="flex min-w-0 items-start gap-4">
         <ToolIcon slug={meta.slug} group={meta.group} size="lg" />
-        <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className="text-xs font-medium tracking-wide text-muted uppercase">{group?.name[lang]}</span>
           <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-[28px]">{meta.name[lang]}</h1>
           <p className="max-w-2xl text-sm leading-relaxed text-muted text-pretty">{meta.desc[lang]}</p>
@@ -43,7 +48,30 @@ export function ToolLayout({
               ))}
             </div>
           ) : null}
+          {related.length ? (
+            <nav aria-label={t("related")} className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs text-muted">{t("related")}:</span>
+              {related.map((r) => (
+                <Link
+                  key={r.slug}
+                  to={`/${r.slug}`}
+                  className="rounded-full border border-line px-2.5 py-1 text-xs font-medium transition hover:border-accent hover:bg-accent-soft"
+                >
+                  {r.name[lang]}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
         </div>
+        <IconButton
+          label={fav ? t("removeFavorite") : t("addFavorite")}
+          aria-pressed={fav}
+          onClick={() => toggleFavorite(meta.slug)}
+          className={cx("shrink-0", fav && "text-accent-text")}
+          data-testid="favorite"
+        >
+          <Star className={cx("size-4", fav && "fill-current")} />
+        </IconButton>
       </header>
 
       <div className="grid min-w-0 gap-5 [grid-template-areas:'input'_'settings'_'results'] lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'input_settings'_'results_settings'] xl:grid-cols-[minmax(0,1fr)_368px]">
@@ -113,7 +141,7 @@ export function RunButton({
       ) : null}
       {queue.error ? (
         <p className="rounded-lg bg-err/10 px-3 py-2 text-xs text-err" role="alert">
-          {queue.error}
+          <ErrorText message={queue.error} files={queue.items.map((it) => it.file)} />
         </p>
       ) : null}
     </div>

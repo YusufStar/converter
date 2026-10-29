@@ -6,27 +6,36 @@ type Bound = number | "end";
 /** One comma-separated part of a range list, not yet resolved against a page count. */
 export type RangeToken = { kind: "span"; from: Bound; to: Bound } | { kind: "odd" | "even" };
 
-const END = /^(last|end|son)$/;
-const ODD = /^(odd|tek)$/;
-const EVEN = /^(even|çift|cift)$/;
+// Words in every UI language, matched after folding case and accents ("Última" → "ultima").
+const END_WORDS = "last|end|son|ultima|ultimo|letzte|ende|derniere|dernier|fin";
+const END = new RegExp(`^(${END_WORDS})$`);
+const ODD = /^(odd|tek|impar|impares|ungerade|impair|impaires|impairs)$/;
+const EVEN = /^(even|cift|par|pares|gerade|pair|paires|pairs)$/;
+const SPAN = new RegExp(`^(\\d+|${END_WORDS})?(?:(-)(\\d+|${END_WORDS})?)?$`);
+
+const fold = (s: string) =>
+  s
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 const bound = (s: string, fallback: Bound): Bound => (s === "" ? fallback : END.test(s) ? "end" : Number(s));
 
 /**
  * Splits "1-3, 5, 8-last" into tokens. Accepts spaces, en/em dashes, open ends
  * ("5-" = 5 to the end, "-3" = 1 to 3), "last"/"end", "odd"/"even" (and the
- * Turkish words). Throws a readable Error for anything else.
+ * same words in every UI language). Throws a readable Error for anything else.
  */
 export function tokenizeRanges(text: string): RangeToken[] {
-  const parts = text
-    .toLocaleLowerCase("tr")
+  const parts = fold(text)
     .replace(/\s*[-–—]\s*/g, "-")
     .split(/[\s,;]+/)
     .filter(Boolean);
   return parts.map((part) => {
     if (ODD.test(part)) return { kind: "odd" };
     if (EVEN.test(part)) return { kind: "even" };
-    const m = /^(\d+|last|end|son)?(?:(-)(\d+|last|end|son)?)?$/.exec(part);
+    const m = SPAN.exec(part);
     if (!m || (!m[1] && !m[3] && m[2])) throw new Error(`Can't read the page range "${part}". Use numbers like 1-3, 5, 8-10`);
     const from = bound(m[1] ?? "", 1);
     const to = m[2] ? bound(m[3] ?? "", "end") : from;

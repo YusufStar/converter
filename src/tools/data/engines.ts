@@ -1,10 +1,10 @@
-import { lazy } from "react";
+import { lazyEngine } from "../../lib/lazy-engine";
 import { Braces, CodeXml, Database, FileBraces, FileCode, FileCode2, FileJson, FileJson2, FileSpreadsheet, Sheet, Table, Table2, WandSparkles } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
-  "data-table": lazy(() => import("./spreadsheet-tool")),
-  "data-format": lazy(() => import("./data-format-tool")),
+  "data-table": lazyEngine(() => import("./spreadsheet-tool")),
+  "data-format": lazyEngine(() => import("./data-format-tool")),
 };
 
 export const icons: IconMap = {

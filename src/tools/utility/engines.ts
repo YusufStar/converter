@@ -1,17 +1,17 @@
-import { lazy } from "react";
+import { lazyEngine } from "../../lib/lazy-engine";
 import { Binary, CaseSensitive, Clock3, FileCode2, ImageUp, Landmark, Link2, Palette, Percent, Ruler, WholeWord } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
-  "util-units": lazy(() => import("./unit-tool")),
-  "util-color": lazy(() => import("./color-tool")),
-  "util-encoding": lazy(() => import("./encoding-tool")),
-  "util-base": lazy(() => import("./number-base-tool")),
-  "util-timestamp": lazy(() => import("./timestamp-tool")),
-  "util-case": lazy(() => import("./text-case-tool")),
-  "util-roman": lazy(() => import("./roman-tool")),
-  "util-words": lazy(() => import("./number-words-tool")),
-  "util-percent": lazy(() => import("./percent-tool")),
+  "util-units": lazyEngine(() => import("./unit-tool")),
+  "util-color": lazyEngine(() => import("./color-tool")),
+  "util-encoding": lazyEngine(() => import("./encoding-tool")),
+  "util-base": lazyEngine(() => import("./number-base-tool")),
+  "util-timestamp": lazyEngine(() => import("./timestamp-tool")),
+  "util-case": lazyEngine(() => import("./text-case-tool")),
+  "util-roman": lazyEngine(() => import("./roman-tool")),
+  "util-words": lazyEngine(() => import("./number-words-tool")),
+  "util-percent": lazyEngine(() => import("./percent-tool")),
 };
 
 export const icons: IconMap = {

@@ -1,31 +1,23 @@
-import { Suspense, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { ChevronDown, Languages, Loader2, Menu, Moon, Search, ShieldCheck, Sun, X } from "lucide-react";
-import { GROUPS, TOOLS, searchTools, toolBySlug, type GroupId, type ToolMeta } from "./catalog";
-import { ENGINES } from "./engines";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Clock, FolderInput, Languages, Loader2, Menu, MonitorDown, Moon, Search, ShieldCheck, Star, Sun, X } from "lucide-react";
+import { GROUPS, TOOLS, searchTools, toolBySlug, toolsAccepting, type GroupId, type ToolMeta } from "./catalog";
+import { ENGINES, preloadEngine } from "./engines";
 import { GROUP_HUE, ToolIcon } from "./icons";
 import { setLang, useLang, useT } from "./lib/i18n";
-import { navigate, slugFromPath, usePath } from "./lib/router";
+import { LANGS, LANG_NAMES } from "./lib/langs";
+import { slugFromPath, usePath } from "./lib/router";
 import { setTheme, useTheme } from "./lib/theme";
-import { FormatChip, IconButton, cx } from "./ui/kit";
+import { extensionsOf, handOff, takeHandoff } from "./lib/handoff";
+import { markRecent, useFavorites, useRecent } from "./lib/prefs";
+import { LAUNCH_EVENT, useInstall } from "./lib/pwa";
+import { formatBytes } from "./lib/files";
+import { Button, FormatChip, IconButton, cx } from "./ui/kit";
+import { Link } from "./ui/link";
 import { ui } from "./ui/strings";
 
-export function Link({ to, className, children, onClick, ...rest }: { to: string; className?: string; children: ReactNode; onClick?: () => void; "aria-current"?: "page" }) {
-  return (
-    <a
-      href={to}
-      className={className}
-      {...rest}
-      onClick={(e: MouseEvent) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-        e.preventDefault();
-        navigate(to);
-        onClick?.();
-      }}
-    >
-      {children}
-    </a>
-  );
-}
+export { Link };
+
+const prefetchTool = (tool: ToolMeta) => () => preloadEngine(tool.engine);
 
 function Logo() {
   const t = useT(ui);
@@ -52,19 +44,93 @@ function ThemeToggle() {
   );
 }
 
-function LangToggle() {
+function InstallButton() {
+  const t = useT(ui);
+  const install = useInstall();
+  if (!install) return null;
+  return (
+    <IconButton label={`${t("installApp")} — ${t("installHint")}`} title={t("installHint")} onClick={install}>
+      <MonitorDown className="size-4" />
+    </IconButton>
+  );
+}
+
+/** Language picker: a short list of buttons (each name in its own language). */
+function LangMenu() {
   const t = useT(ui);
   const lang = useLang();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [open]);
   return (
-    <button
-      type="button"
-      onClick={() => setLang(lang === "en" ? "tr" : "en")}
-      aria-label={t("langSwitchLabel")}
-      className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-fg"
-    >
-      <Languages className="size-3.5" />
-      {t("langSwitch")}
-    </button>
+    <div ref={box} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={t("language")}
+        aria-expanded={open}
+        title={t("language")}
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted uppercase transition hover:bg-surface-2 hover:text-fg"
+      >
+        <Languages className="size-3.5" />
+        {lang}
+      </button>
+      {open ? (
+        <ul className="absolute right-0 bottom-full z-30 mb-2 flex w-40 animate-rise flex-col rounded-xl border border-line bg-surface p-1 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.45)]">
+          {LANGS.map((l) => (
+            <li key={l}>
+              <button
+                type="button"
+                lang={l}
+                aria-current={l === lang ? "true" : undefined}
+                onClick={() => {
+                  setOpen(false);
+                  if (l !== lang) setLang(l);
+                }}
+                className={cx(
+                  "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] hover:bg-surface-2",
+                  l === lang && "font-semibold",
+                )}
+              >
+                {LANG_NAMES[l]}
+                {l === lang ? <Check className="size-3.5 text-accent-text" /> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function SidebarItem({ tool, active, onNavigate }: { tool: ToolMeta; active: boolean; onNavigate?: () => void }) {
+  const lang = useLang();
+  return (
+    <li>
+      <Link
+        to={`/${tool.slug}`}
+        onClick={onNavigate}
+        prefetch={prefetchTool(tool)}
+        aria-current={active ? "page" : undefined}
+        className={cx(
+          "group flex h-8 min-w-0 items-center gap-2.5 rounded-lg px-2 text-[13px] transition",
+          active ? "bg-surface font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-fg/80 hover:bg-surface-2 hover:text-fg",
+        )}
+      >
+        <ToolIcon slug={tool.slug} group={tool.group} size="sm" />
+        <span className="truncate">{tool.name[lang]}</span>
+      </Link>
+    </li>
   );
 }
 
@@ -88,8 +154,12 @@ function Sidebar({ current, onNavigate }: { current: string; onNavigate?: () => 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const filtered = useMemo(() => searchTools(q), [q]);
   const searching = q.trim().length > 0;
+  // "X to Y" preset pages only show up when searching; the sidebar lists the main tools.
+  const filtered = useMemo(() => (searching ? searchTools(q) : TOOLS.filter((x) => !x.parent)), [q, searching]);
+  const favs = useFavorites()
+    .map((s) => toolBySlug.get(s))
+    .filter((x): x is ToolMeta => !!x);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -129,6 +199,19 @@ function Sidebar({ current, onNavigate }: { current: string; onNavigate?: () => 
           {t("home")}
         </Link>
         {searching && !filtered.length ? <p className="px-3 py-6 text-center text-xs text-muted">{t("noResults", { q })}</p> : null}
+        {!searching && favs.length ? (
+          <div className="mb-1" data-testid="sidebar-favorites">
+            <div className="flex items-center gap-2 px-2.5 py-2 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+              <Star className="size-3 fill-current text-accent-text" />
+              <span className="flex-1">{t("favorites")}</span>
+            </div>
+            <ul className="flex flex-col gap-px">
+              {favs.map((tool) => (
+                <SidebarItem key={tool.slug} tool={tool} active={tool.slug === current} onNavigate={onNavigate} />
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {GROUPS.map((g) => {
           const tools = filtered.filter((tool) => tool.group === g.id);
           if (!tools.length) return null;
@@ -148,25 +231,9 @@ function Sidebar({ current, onNavigate }: { current: string; onNavigate?: () => 
               </button>
               {open ? (
                 <ul className="flex flex-col gap-px">
-                  {tools.map((tool) => {
-                    const active = tool.slug === current;
-                    return (
-                      <li key={tool.slug}>
-                        <Link
-                          to={`/${tool.slug}`}
-                          onClick={onNavigate}
-                          aria-current={active ? "page" : undefined}
-                          className={cx(
-                            "group flex h-8 min-w-0 items-center gap-2.5 rounded-lg px-2 text-[13px] transition",
-                            active ? "bg-surface font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-fg/80 hover:bg-surface-2 hover:text-fg",
-                          )}
-                        >
-                          <ToolIcon slug={tool.slug} group={tool.group} size="sm" />
-                          <span className="truncate">{tool.name[lang]}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
+                  {tools.map((tool) => (
+                    <SidebarItem key={tool.slug} tool={tool} active={tool.slug === current} onNavigate={onNavigate} />
+                  ))}
                 </ul>
               ) : null}
             </div>
@@ -180,7 +247,8 @@ function Sidebar({ current, onNavigate }: { current: string; onNavigate?: () => 
           <span className="truncate">{t("privacy")}</span>
         </span>
         <div className="flex shrink-0 items-center">
-          <LangToggle />
+          <InstallButton />
+          <LangMenu />
           <ThemeToggle />
         </div>
       </div>
@@ -188,11 +256,13 @@ function Sidebar({ current, onNavigate }: { current: string; onNavigate?: () => 
   );
 }
 
-function ToolCard({ tool }: { tool: ToolMeta }) {
+function ToolCard({ tool, onOpen }: { tool: ToolMeta; onOpen?: () => void }) {
   const lang = useLang();
   return (
     <Link
       to={`/${tool.slug}`}
+      onClick={onOpen}
+      prefetch={prefetchTool(tool)}
       className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-line bg-surface p-4 transition duration-200 ease-out-soft hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[0_12px_30px_-16px_rgb(0_0_0/0.25)]"
     >
       <div className="flex items-start gap-3">
@@ -213,6 +283,135 @@ function ToolCard({ tool }: { tool: ToolMeta }) {
   );
 }
 
+/** "Drop any file" on the home page: lists every tool that can open it and hands the file over. */
+function useHomeFiles() {
+  const [files, setFiles] = useState<File[]>([]);
+  // Files the OS opened with the installed app arrive here (see src/lib/pwa.ts).
+  useEffect(() => {
+    const take = () => {
+      const launched = takeHandoff("");
+      if (launched.length) setFiles(launched);
+    };
+    take();
+    window.addEventListener(LAUNCH_EVENT, take);
+    return () => window.removeEventListener(LAUNCH_EVENT, take);
+  }, []);
+  return [files, setFiles] as const;
+}
+
+function HomeDropZone({ onFiles }: { onFiles: (files: File[]) => void }) {
+  const t = useT(ui);
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        if (e.dataTransfer.files.length) onFiles(Array.from(e.dataTransfer.files));
+      }}
+      className="max-w-xl"
+    >
+      <input
+        ref={input}
+        type="file"
+        multiple
+        className="sr-only"
+        data-testid="home-file-input"
+        onChange={(e) => {
+          if (e.target.files?.length) onFiles(Array.from(e.target.files));
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        className={cx(
+          "flex w-full min-w-0 items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-left transition",
+          over ? "border-accent bg-accent-soft" : "border-line-strong hover:border-accent hover:bg-accent-soft/40",
+        )}
+      >
+        <FolderInput className="size-5 shrink-0 text-accent-text" />
+        <span className="flex min-w-0 flex-col">
+          <span className="text-sm font-semibold">{t("homeDropTitle")}</span>
+          <span className="text-xs text-muted">{t("homeDropBody")}</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function HomeDropResults({ files, onClear }: { files: File[]; onClear: () => void }) {
+  const t = useT(ui);
+  const tools = useMemo(() => toolsAccepting(extensionsOf(files)), [files]);
+  return (
+    <section className="flex flex-col gap-4" data-testid="home-drop-results" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="min-w-0 text-lg font-semibold tracking-tight break-all">
+          {files.length === 1 ? t("homeDropResult", { name: files[0].name }) : t("homeDropResultMany", { n: files.length })}
+        </h2>
+        <Button size="sm" variant="ghost" onClick={onClear}>
+          <X className="size-3.5" />
+          {t("homeDropClear")}
+        </Button>
+      </div>
+      {files.length > 1 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {files.slice(0, 12).map((f, i) => (
+            <span key={i} className="max-w-full truncate rounded-full border border-line px-2.5 py-1 text-xs text-muted">
+              {f.name} · {formatBytes(f.size)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {tools.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {tools.map((tool) => (
+            <ToolCard key={tool.slug} tool={tool} onOpen={() => handOff(tool.slug, files)} />
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl border border-line bg-surface px-4 py-6 text-center text-sm text-muted">{t("homeDropNone")}</p>
+      )}
+    </section>
+  );
+}
+
+function RecentTools() {
+  const t = useT(ui);
+  const lang = useLang();
+  const recent = useRecent()
+    .map((s) => toolBySlug.get(s))
+    .filter((x): x is ToolMeta => !!x);
+  if (!recent.length) return null;
+  return (
+    <section className="flex flex-col gap-3" data-testid="recent-tools">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-muted">
+        <Clock className="size-4" />
+        {t("recent")}
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {recent.map((tool) => (
+          <Link
+            key={tool.slug}
+            to={`/${tool.slug}`}
+            prefetch={prefetchTool(tool)}
+            className="flex min-w-0 items-center gap-2 rounded-xl border border-line bg-surface py-1.5 pr-3 pl-1.5 text-sm font-medium transition hover:border-accent"
+          >
+            <ToolIcon slug={tool.slug} group={tool.group} size="sm" />
+            <span className="truncate">{tool.name[lang]}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Home() {
   const t = useT(ui);
   const lang = useLang();
@@ -220,6 +419,7 @@ function Home() {
   const results = useMemo(() => searchTools(q), [q]);
   const popular = TOOLS.filter((x) => x.popular);
   const searching = q.trim().length > 0;
+  const [files, setFiles] = useHomeFiles();
 
   return (
     <div className="flex flex-col gap-10">
@@ -250,16 +450,25 @@ function Home() {
           {!searching && popular.length ? (
             <div className="flex flex-wrap gap-2">
               {popular.map((p) => (
-                <Link key={p.slug} to={`/${p.slug}`} className="rounded-full border border-line px-3 py-1.5 text-xs font-medium transition hover:border-accent hover:bg-accent-soft">
+                <Link
+                  key={p.slug}
+                  to={`/${p.slug}`}
+                  prefetch={prefetchTool(p)}
+                  className="rounded-full border border-line px-3 py-1.5 text-xs font-medium transition hover:border-accent hover:bg-accent-soft"
+                >
                   {p.name[lang]}
                 </Link>
               ))}
             </div>
           ) : null}
+          <HomeDropZone onFiles={setFiles} />
         </div>
       </section>
 
-      {searching ? (
+      {files.length ? <HomeDropResults files={files} onClear={() => setFiles([])} /> : null}
+      {!searching && !files.length ? <RecentTools /> : null}
+
+      {files.length ? null : searching ? (
         results.length ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {results.map((tool) => (
@@ -271,7 +480,7 @@ function Home() {
         )
       ) : (
         GROUPS.map((g) => {
-          const tools = TOOLS.filter((x) => x.group === g.id);
+          const tools = TOOLS.filter((x) => x.group === g.id && !x.parent);
           if (!tools.length) return null;
           return (
             <section key={g.id} className="flex flex-col gap-4" id={g.id}>
@@ -317,6 +526,7 @@ function Loading() {
 
 function ToolRoute({ tool }: { tool: ToolMeta }) {
   const Engine = ENGINES[tool.engine];
+  useEffect(() => markRecent(tool.slug), [tool.slug]);
   if (!Engine) return <NotFound />;
   // key: a fresh engine state per tool, so presets apply when switching tools.
   return (
@@ -339,6 +549,36 @@ export function App() {
   useEffect(() => {
     document.title = tool ? `${tool.name[lang]} — ${SITE_TITLE}` : `${SITE_TITLE} — ${t("tagline")}`;
   }, [tool, lang, t]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  // Only English pages are for search engines (build/site.ts writes the same tags into each
+  // page); keep that true after client-side navigation and for unknown paths.
+  useEffect(() => {
+    const indexable = lang === "en" && (!slug || !!tool);
+    const setTag = (selector: string, create: () => HTMLElement, apply: (el: HTMLElement) => void) => {
+      let el = document.head.querySelector<HTMLElement>(selector);
+      if (!el) document.head.append((el = create()));
+      apply(el);
+    };
+    if (indexable) {
+      document.head.querySelector('meta[name="robots"]')?.remove();
+      setTag(
+        'link[rel="canonical"]',
+        () => Object.assign(document.createElement("link"), { rel: "canonical" }),
+        (el) => ((el as HTMLLinkElement).href = location.origin + location.pathname),
+      );
+    } else {
+      document.head.querySelector('link[rel="canonical"]')?.remove();
+      setTag(
+        'meta[name="robots"]',
+        () => Object.assign(document.createElement("meta"), { name: "robots" }),
+        (el) => ((el as HTMLMetaElement).content = "noindex, follow"),
+      );
+    }
+  }, [lang, slug, tool]);
 
   useEffect(() => {
     if (!drawer) return;

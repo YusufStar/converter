@@ -14,6 +14,7 @@ import { Results } from "../../ui/results";
 import { RunButton, ToolLayout } from "../../ui/tool-layout";
 import { Hint, PDF_ACCEPT, pagesLabel, pdfBlob } from "./common";
 import { s } from "./strings";
+import { ErrorText } from "../../ui/error-text";
 
 interface Card {
   /** 0-based page index in the source PDF (also the stable key). */
@@ -275,7 +276,9 @@ export default function OrganizeTool({ meta }: EngineProps) {
     loadError ? (
       <p className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-6 text-sm text-err" role="alert">
         <FileWarning className="size-4 shrink-0" />
-        {loadError}
+        <span className="min-w-0">
+          <ErrorText message={loadError} files={[file]} />
+        </span>
       </p>
     ) : !doc ? (
       <p className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-4 py-10 text-sm text-muted">

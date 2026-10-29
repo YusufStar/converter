@@ -1,11 +1,35 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Check, FileIcon, GripVertical, Loader2, Plus, Upload, X } from "lucide-react";
 import { formatBytes, matchesAccept } from "../lib/files";
+import { takeHandoff } from "../lib/handoff";
+import { slugFromPath, usePath } from "../lib/router";
 import { useT } from "../lib/i18n";
 import { useObjectUrl } from "../lib/use-object-url";
 import type { Queue, QueueItem } from "../lib/use-queue";
+import { ErrorText } from "./error-text";
 import { Button, IconButton, ProgressBar, cx } from "./kit";
 import { ui } from "./strings";
+
+/** Every file inside dropped folders (recursively), skipping hidden files like .DS_Store. */
+async function filesFromEntries(entries: FileSystemEntry[]): Promise<File[]> {
+  const out: File[] = [];
+  const walk = async (entry: FileSystemEntry): Promise<void> => {
+    if (entry.name.startsWith(".")) return;
+    if (entry.isFile) {
+      out.push(await new Promise<File>((resolve, reject) => (entry as FileSystemFileEntry).file(resolve, reject)));
+    } else if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+      // readEntries returns at most ~100 entries per call.
+      for (;;) {
+        const batch = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+        if (!batch.length) break;
+        for (const child of batch) await walk(child);
+      }
+    }
+  };
+  for (const entry of entries) await walk(entry);
+  return out;
+}
 
 /**
  * Drop / click / paste target. Shows a big zone while empty and a compact
@@ -62,7 +86,12 @@ export function Dropzone({
     onDrop: (e: DragEvent) => {
       e.preventDefault();
       setOver(false);
-      take(e.dataTransfer.files);
+      // Entries must be read synchronously inside the drop event.
+      const entries = Array.from(e.dataTransfer.items ?? [])
+        .map((item) => item.webkitGetAsEntry?.())
+        .filter((entry): entry is FileSystemEntry => !!entry);
+      if (entries.some((entry) => entry.isDirectory)) void filesFromEntries(entries).then(take);
+      else take(e.dataTransfer.files);
     },
   };
 
@@ -197,8 +226,8 @@ export function QueueList({ queue, reorderable = false }: { queue: Queue; reorde
               {item.status === "working" ? (
                 <ProgressBar value={item.progress} className="max-w-56" />
               ) : item.status === "error" && item.error ? (
-                <span className="truncate text-xs text-err" title={item.error}>
-                  {item.error}
+                <span className="line-clamp-2 text-xs text-err" title={item.error}>
+                  <ErrorText message={item.error} files={[item.file]} />
                 </span>
               ) : (
                 <span className="text-xs text-muted tabular-nums">{formatBytes(item.file.size)}</span>
@@ -240,6 +269,13 @@ export function FileInput({
   reorderable?: boolean;
 }) {
   const has = queue.items.length > 0;
+  const slug = slugFromPath(usePath());
+  // Files handed over from another tool, the home page or the OS ("Open with").
+  useEffect(() => {
+    const files = takeHandoff(slug).filter((f) => matchesAccept(f, accept));
+    if (files.length) queue.add(multiple ? files : files.slice(0, 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <Dropzone onFiles={queue.add} accept={accept} multiple={multiple} formats={formats} compact={has} />

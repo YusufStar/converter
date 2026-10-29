@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.PORT ?? 5180);
+// PW_PREVIEW=1 runs the suite against the production build (`npm run build` first).
+const PREVIEW = !!process.env.PW_PREVIEW;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -16,9 +18,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  // Reuses a running `npm run dev`; starts one otherwise.
+  // Reuses a running server on PORT; starts one otherwise.
   webServer: {
-    command: `npm run dev -- --port ${PORT}`,
+    command: PREVIEW ? `npm run preview -- --port ${PORT}` : `npm run dev -- --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,
     timeout: 60_000,

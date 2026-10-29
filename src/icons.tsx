@@ -1,5 +1,6 @@
-import { Archive, FileText, FileType2, Image, Sheet, Sparkles, Video, type LucideIcon } from "lucide-react";
+import { Archive, FileText, FileType2, Image, Sheet, Sparkles, Type, Video, type LucideIcon } from "lucide-react";
 import type { GroupId } from "./catalog-types";
+import { toolBySlug } from "./catalog";
 import { ICONS } from "./engines";
 import { cx } from "./ui/kit";
 
@@ -10,6 +11,7 @@ export const GROUP_ICON: Record<GroupId, LucideIcon> = {
   media: Video,
   data: Sheet,
   archive: Archive,
+  font: Type,
   utility: Sparkles,
 };
 
@@ -21,11 +23,13 @@ export const GROUP_HUE: Record<GroupId, string> = {
   media: "#8e4ec6",
   data: "#30a46c",
   archive: "#d6a116",
+  font: "#d6409f",
   utility: "#12a594",
 };
 
 export function ToolIcon({ slug, group, size = "md" }: { slug?: string; group: GroupId; size?: "sm" | "md" | "lg" }) {
-  const Icon = (slug && ICONS[slug]) || GROUP_ICON[group];
+  // Preset pages (png-to-jpg…) borrow their parent tool's icon.
+  const Icon = (slug && (ICONS[slug] ?? ICONS[toolBySlug.get(slug)?.parent ?? ""])) || GROUP_ICON[group];
   const hue = GROUP_HUE[group];
   return (
     <span

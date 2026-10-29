@@ -1,12 +1,12 @@
-import { lazy } from "react";
-import { Crop, FileImage, Film, Image, ImageDown, ImagePlus, Images, RotateCw, Shapes, Smartphone, Star } from "lucide-react";
+import { lazyEngine } from "../../lib/lazy-engine";
+import { Aperture, Crop, FileImage, Film, Image, ImageDown, ImagePlus, Images, Layers, RotateCw, Shapes, Smartphone, Sparkles, Star } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
-  image: lazy(() => import("./image-tool")),
-  "image-pdf": lazy(() => import("./images-to-pdf-tool")),
-  "image-gif": lazy(() => import("./gif-maker-tool")),
-  "image-favicon": lazy(() => import("./favicon-tool")),
+  image: lazyEngine(() => import("./image-tool")),
+  "image-pdf": lazyEngine(() => import("./images-to-pdf-tool")),
+  "image-gif": lazyEngine(() => import("./gif-maker-tool")),
+  "image-favicon": lazyEngine(() => import("./favicon-tool")),
 };
 
 export const icons: IconMap = {
@@ -15,6 +15,9 @@ export const icons: IconMap = {
   "png-converter": Image,
   "jpg-converter": FileImage,
   "avif-converter": ImagePlus,
+  "jxl-converter": Sparkles,
+  "psd-converter": Layers,
+  "raw-converter": Aperture,
   "svg-converter": Shapes,
   "heic-converter": Smartphone,
   "gif-converter": Film,

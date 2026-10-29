@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import type { EngineProps } from "../../engines";
 import { splitName } from "../../lib/files";
 import { useT } from "../../lib/i18n";
-import { prepareForPdf } from "../../lib/image/convert";
-import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL } from "../../lib/image/formats";
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, inputKind } from "../../lib/image/formats";
+import { concurrency, runJob, warmPool } from "../../lib/image/pool";
 import { DEFAULT_RESIZE } from "../../lib/image/resize";
 import { DEFAULT_LAYOUT, imagesToPdf, type ImageFit, type Orientation, type PageSizeId, type PdfLayoutOptions } from "../../lib/pdf/images-to-pdf";
 import { mapPool } from "../../lib/pool";
@@ -28,20 +28,21 @@ export default function ImagesToPdfTool({ meta }: EngineProps) {
   const set = (p: Partial<PdfLayoutOptions>) => setLayout((l) => ({ ...l, ...p }));
 
   const resize = shrink ? { ...DEFAULT_RESIZE, mode: "longest" as const, longest: 2000, noEnlarge: true } : DEFAULT_RESIZE;
+  const workers = concurrency(queue.items.some((it) => inputKind(it.file) === "raw"));
+  useEffect(() => warmPool([], workers), [workers]);
 
   const run = () => {
     if (mode === "each") {
-      return queue.runEach(async (file) => {
-        const img = await prepareForPdf(file, quality, resize);
+      return queue.runEach(async (file, ctx) => {
+        const img = await runJob("pdf", file, [quality, resize], resize, ctx.signal);
         return { name: `${splitName(file.name).base}.pdf`, blob: pdfBlob(await imagesToPdf([img], layout)), note: t("pages", { n: 1 }) };
-      }, 3);
+      }, workers);
     }
     return queue.runAll(async (files, ctx) => {
-      // Decode/re-encode in parallel, then write pages in list order.
+      // Decode/re-encode in parallel workers, then write pages in list order.
       let done = 0;
-      const images = await mapPool(files, 3, async (f) => {
-        if (ctx.signal.aborted) throw new DOMException("Cancelled", "AbortError");
-        const img = await prepareForPdf(f, quality, resize);
+      const images = await mapPool(files, workers, async (f) => {
+        const img = await runJob("pdf", f, [quality, resize], resize, ctx.signal);
         ctx.progress((++done / files.length) * 0.8);
         return img;
       });

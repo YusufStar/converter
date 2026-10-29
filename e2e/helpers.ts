@@ -55,6 +55,8 @@ export function sniff(b: Uint8Array): string {
   const s = (o: number, n: number) => String.fromCharCode(...b.slice(o, o + n));
   if (b[0] === 0x89 && s(1, 3) === "PNG") return "png";
   if (b[0] === 0xff && b[1] === 0xd8) return "jpg";
+  // JPEG XL: bare codestream, or the ISO BMFF container with a "JXL " signature box.
+  if ((b[0] === 0xff && b[1] === 0x0a) || s(4, 4) === "JXL ") return "jxl";
   if (s(0, 4) === "RIFF" && s(8, 4) === "WEBP") return "webp";
   if (s(4, 8) === "ftypavif") return "avif";
   if (s(0, 3) === "GIF") return "gif";

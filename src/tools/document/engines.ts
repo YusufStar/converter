@@ -1,9 +1,9 @@
-import { lazy } from "react";
+import { lazyEngine } from "../../lib/lazy-engine";
 import { CodeXml, FileCode, FileDown, FileText, FileType, Globe, Hash, Heading, LetterText, Pilcrow, ScrollText, TextQuote } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
-  "doc-convert": lazy(() => import("./document-tool")),
+  "doc-convert": lazyEngine(() => import("./document-tool")),
 };
 
 export const icons: IconMap = {

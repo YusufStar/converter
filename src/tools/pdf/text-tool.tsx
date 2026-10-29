@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import type { EngineProps } from "../../engines";
 import { withExt } from "../../lib/files";
-import { useT } from "../../lib/i18n";
+import { useLang, useT } from "../../lib/i18n";
+import { localeOf } from "../../lib/langs";
 import { pageSelection } from "../../lib/pdf/ranges";
 import { closePdf, openFile, pageText } from "../../lib/pdf/pdfjs";
 import { useQueue } from "../../lib/use-queue";
@@ -18,6 +19,7 @@ const PREVIEW_MAX = 200_000;
 
 export default function TextTool({ meta }: EngineProps) {
   const t = useT(s);
+  const locale = localeOf(useLang());
   const tu = useT(ui);
   const queue = useQueue();
   const [scope, setScope] = useState<Scope>({ all: true, ranges: "" });
@@ -63,7 +65,7 @@ export default function TextTool({ meta }: EngineProps) {
         return {
           name: withExt(file.name, "txt"),
           blob,
-          note: !chars ? t("noText") : `${pagesLabel(t, list.length)} · ${t("words", { n: words.toLocaleString() })}`,
+          note: !chars ? t("noText") : `${pagesLabel(t, list.length)} · ${t("words", { n: words.toLocaleString(locale) })}`,
           sourceSize: undefined,
         };
       } finally {
@@ -119,7 +121,7 @@ export default function TextTool({ meta }: EngineProps) {
                   {text.slice(0, PREVIEW_MAX)}
                 </pre>
               )}
-              {text.length > PREVIEW_MAX ? <Hint>{t("truncated", { n: PREVIEW_MAX.toLocaleString() })}</Hint> : null}
+              {text.length > PREVIEW_MAX ? <Hint>{t("truncated", { n: PREVIEW_MAX.toLocaleString(locale) })}</Hint> : null}
             </div>
           ) : null}
         </Results>

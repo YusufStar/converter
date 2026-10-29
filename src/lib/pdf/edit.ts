@@ -3,7 +3,9 @@
 import type { PDFDocument, PDFObject } from "pdf-lib";
 import { pageSelection, type SplitPart } from "./ranges";
 
-export const ENCRYPTED = "This PDF is password-protected";
+import { ENCRYPTED } from "./errors";
+
+export { ENCRYPTED };
 
 type Bytes = Uint8Array | ArrayBuffer;
 const lib = () => import("pdf-lib");

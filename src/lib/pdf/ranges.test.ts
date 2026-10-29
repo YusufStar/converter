@@ -6,6 +6,17 @@ describe("parseRanges", () => {
     expect(parseRanges("1-3, 5, 8-10", 10)).toEqual([[1, 2, 3], [5], [8, 9, 10]]);
   });
 
+  it("understands last/odd/even in every UI language, any case or accents", () => {
+    expect(parseRanges("8-ÚLTIMA", 10)).toEqual([[8, 9, 10]]);
+    expect(parseRanges("9-letzte", 10)).toEqual([[9, 10]]);
+    expect(parseRanges("dernière", 4)).toEqual([[4]]);
+    expect(parseRanges("SON", 3)).toEqual([[3]]);
+    expect(parseRanges("IMPAR", 4)).toEqual(parseRanges("odd", 4));
+    expect(parseRanges("ungerade", 4)).toEqual(parseRanges("odd", 4));
+    expect(parseRanges("pares", 4)).toEqual(parseRanges("even", 4));
+    expect(parseRanges("ÇİFT", 4)).toEqual(parseRanges("even", 4));
+  });
+
   it("tolerates spaces, dashes and separators", () => {
     expect(parseRanges(" 1 - 3 ;5   7–8 ", 10)).toEqual([[1, 2, 3], [5], [7, 8]]);
     expect(parseRanges("2—4", 5)).toEqual([[2, 3, 4]]);

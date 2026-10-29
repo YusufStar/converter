@@ -1,17 +1,34 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Flag, FlagTriangleRight, Info } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Cpu, Flag, FlagTriangleRight, Info } from "lucide-react";
 import { formatBytes } from "../../lib/files";
 import { useT } from "../../lib/i18n";
 import { formatTime, isAudioFile, parseRange } from "../../lib/media/args";
-import { CORE_BYTES, engineReady, runFFmpeg, type Plan, type RunResult } from "../../lib/media/ffmpeg";
+import { engineState, preloadFFmpeg, runFFmpeg, subscribeEngine, type EngineState, type Plan, type RunOptions, type RunResult } from "../../lib/media/ffmpeg";
+import { threadCount } from "../../lib/media/args";
 import type { OutputInit, Output, Queue } from "../../lib/use-queue";
-import { Button, Field, IconButton, TextField } from "../../ui/kit";
+import { Button, Field, IconButton, ProgressBar, TextField } from "../../ui/kit";
 import { s } from "./strings";
 
 type PlanFn = Parameters<typeof runFFmpeg>[1];
 export type { Plan };
 
 const MB = 1024 * 1024;
+const mb = (b: number) => (b / MB).toFixed(1);
+
+/** Warms up the shared ffmpeg core on mount and follows its download / start-up. */
+export function useEngine(): EngineState {
+  useEffect(() => preloadFFmpeg(), []);
+  return useSyncExternalStore(subscribeEngine, engineState);
+}
+
+/** "Downloading the video engine… 12.3 / 31.2 MB (39%)" while the core isn't ready, else null. */
+export function useEngineStatus(): string | null {
+  const t = useT(s);
+  const e = useEngine();
+  if (e.phase === "download") return t("loading", { got: mb(e.received), total: mb(e.total), pct: Math.floor((e.received / e.total) * 100) });
+  if (e.phase === "start") return t("starting");
+  return null;
+}
 
 /**
  * Runs the queue one file at a time through ffmpeg (one wasm worker), with a
@@ -19,41 +36,19 @@ const MB = 1024 * 1024;
  */
 export function useMediaRun(queue: Queue) {
   const t = useT(s);
-  const [loading, setLoading] = useState<number | null>(null);
+  const engine = useEngineStatus();
   const [index, setIndex] = useState(0);
 
-  const run = (task: (file: File, exec: (plan: PlanFn) => Promise<RunResult>) => Promise<OutputInit | OutputInit[]>) => {
+  const run = (task: (file: File, exec: (plan: PlanFn, opts?: Pick<RunOptions, "engine">) => Promise<RunResult>) => Promise<OutputInit | OutputInit[]>) => {
     let i = 0;
-    if (!engineReady()) setLoading(0);
     return queue.runEach(async (file, ctx) => {
       setIndex(++i);
-      try {
-        return await task(file, (plan) =>
-          runFFmpeg(file, plan, {
-            signal: ctx.signal,
-            // Re-render once per MB, not per network chunk.
-            onLoading: (b) => setLoading((prev) => (prev !== null && Math.floor(prev / MB) === Math.floor(b / MB) && b < CORE_BYTES ? prev : b)),
-            onProgress: (p) => {
-              setLoading(null);
-              ctx.progress(p);
-            },
-          }),
-        );
-      } finally {
-        setLoading(null);
-      }
+      return task(file, (plan, opts) => runFFmpeg(file, plan, { ...opts, signal: ctx.signal, onProgress: ctx.progress }));
     }, 1);
   };
 
   const n = queue.items.length;
-  const status =
-    loading !== null
-      ? loading >= CORE_BYTES
-        ? t("starting")
-        : t("loading", { got: Math.floor(loading / MB), total: Math.round(CORE_BYTES / MB) })
-      : n > 1
-        ? t("fileOf", { i: index, n, pct: Math.round(queue.progress * 100) })
-        : null;
+  const status = engine ?? (n > 1 ? t("fileOf", { i: index, n, pct: Math.round(queue.progress * 100) }) : null);
   return { run, status };
 }
 
@@ -93,14 +88,44 @@ export function markRange(value: RangeText, which: "start" | "end", sec: number,
 
 export function SlowNote({ children }: { children?: ReactNode }) {
   const t = useT(s);
+  const e = useEngine();
   return (
-    <p className="flex gap-2 text-xs leading-relaxed text-muted">
-      <Info className="mt-0.5 size-3.5 shrink-0" />
-      <span>
-        {children ? <>{children} </> : null}
-        {t("slowNote")}
+    <div className="flex flex-col gap-2">
+      <p className="flex gap-2 text-xs leading-relaxed text-muted">
+        <Info className="mt-0.5 size-3.5 shrink-0" />
+        <span>
+          {children ? <>{children} </> : null}
+          {t("slowNote")}
+        </span>
+      </p>
+      <EngineLine state={e} />
+    </div>
+  );
+}
+
+/** One quiet line about the ffmpeg core: download progress, start-up, or ready (+ threads). */
+function EngineLine({ state: e }: { state: EngineState }) {
+  const t = useT(s);
+  const threads = threadCount(typeof navigator === "undefined" ? undefined : navigator.hardwareConcurrency);
+  const label =
+    e.phase === "download"
+      ? t("loading", { got: mb(e.received), total: mb(e.total), pct: Math.floor((e.received / e.total) * 100) })
+      : e.phase === "start"
+        ? t("starting")
+        : e.phase === "ready"
+          ? e.kind === "mt"
+            ? t("engineMt", { n: threads })
+            : t("engineSt")
+          : null;
+  if (!label) return null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg bg-surface-2 px-2.5 py-2" data-testid="engine-status" data-phase={e.phase} data-kind={e.kind}>
+      <span className="flex items-center gap-1.5 text-[11px] text-muted tabular-nums">
+        <Cpu className="size-3 shrink-0" />
+        {label}
       </span>
-    </p>
+      {e.phase === "download" ? <ProgressBar value={e.received / e.total} /> : null}
+    </div>
   );
 }
 

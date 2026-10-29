@@ -1,16 +1,18 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FlipHorizontal2, FlipVertical2, Info } from "lucide-react";
 import type { EngineProps } from "../../engines";
 import { useT } from "../../lib/i18n";
-import { convertImage, DEFAULT_IMAGE_OPTIONS, type ImageOptions, type Rotation } from "../../lib/image/convert";
-import { FORMATS, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, OUTPUT_FORMATS, inputKind, type OutputFormat } from "../../lib/image/formats";
+import { DEFAULT_IMAGE_OPTIONS, type ImageOptions, type Rotation } from "../../lib/image/convert";
+import { FORMATS, IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, OUTPUT_FORMATS, inputKind, resolveFormat, type OutputFormat } from "../../lib/image/formats";
 import { ICO_SIZES } from "../../lib/image/ico";
+import { concurrency, runJob, warmPool } from "../../lib/image/pool";
 import { DEFAULT_RESIZE, type ResizeMode, type ResizeOptions } from "../../lib/image/resize";
 import { useQueue } from "../../lib/use-queue";
 import { FileInput } from "../../ui/files";
 import { ColorField, Field, NumberField, Segmented, Slider, Switch, cx } from "../../ui/kit";
 import { Results } from "../../ui/results";
 import { RunButton, ToolLayout } from "../../ui/tool-layout";
+import { Compare, pickResultRow } from "./compare";
 import { s } from "./strings";
 
 interface Preset {
@@ -118,9 +120,23 @@ export default function ImageTool({ meta }: EngineProps) {
   const info = fmt === "same" ? null : FORMATS[fmt];
   const showQuality = fmt === "same" || (info?.lossy ?? false);
   const showPng = fmt === "png" || fmt === "same";
-  const canLossless = fmt === "webp" || fmt === "avif";
+  const canLossless = fmt === "webp" || fmt === "avif" || fmt === "jxl";
   const canTarget = fmt !== "gif" && fmt !== "bmp" && fmt !== "tiff" && fmt !== "ico";
   const noAlpha = info ? !info.alpha : false;
+
+  // Formats each queued file will be written in, plus decoders the inputs need.
+  const files = queue.items.map((it) => it.file);
+  const targets = fmt === "same" ? files.map((f) => resolveFormat("same", f)) : [fmt];
+  // AVIF/JXL/lossless WebP encoders and LibRaw are multi-threaded, memory-hungry WebAssembly.
+  const heavy = targets.some((f) => f === "avif" || f === "jxl" || (f === "webp" && o.lossless)) || files.some((f) => inputKind(f) === "raw");
+  const codecs = [...targets, ...(files.some((f) => inputKind(f) === "jxl") ? ["jxl-decode"] : [])].sort().join();
+  const workers = concurrency(heavy);
+  // Warm the workers (and their WebAssembly codecs) before Convert is pressed.
+  useEffect(() => warmPool(codecs.split(","), workers), [codecs, workers]);
+
+  // Output → the file it came from, for the before/after comparison.
+  const sources = useRef(new Map<Blob, File>());
+  const [compareId, setCompareId] = useState<string | null>(null);
 
   const formatOptions = useMemo(
     () => [
@@ -244,12 +260,14 @@ export default function ImageTool({ meta }: EngineProps) {
 
   const run = () => {
     const opts: ImageOptions = { ...o, targetKB: limit ? o.targetKB : null };
-    // AVIF/lossless WebP run in WebAssembly and are memory hungry: one at a time.
-    const heavy = fmt === "avif" || (fmt === "webp" && o.lossless);
-    return queue.runEach(async (file) => {
-      const r = await convertImage(file, opts);
-      return { name: r.name, blob: r.blob, width: r.width, height: r.height, note: r.targetMissed ? t("targetMissed") : undefined };
-    }, heavy ? 1 : 3);
+    sources.current.clear();
+    setCompareId(null);
+    return queue.runEach(async (file, ctx) => {
+      const r = await runJob("convert", file, [opts], opts.resize, ctx.signal);
+      sources.current.set(r.blob, file);
+      const note = [r.via === "libraw" ? t("viaLibraw") : r.via === "preview" ? t("viaPreview") : "", r.targetMissed ? t("targetMissed") : ""].filter(Boolean).join(" · ");
+      return { name: r.name, blob: r.blob, width: r.width, height: r.height, note: note || undefined };
+    }, workers);
   };
 
   const n = queue.items.length;
@@ -269,7 +287,14 @@ export default function ImageTool({ meta }: EngineProps) {
         </>
       }
       action={<RunButton queue={queue} onRun={run} label={n > 1 ? t("convertN", { n }) : t("convertOne")} disabled={limit && !o.targetKB} />}
-      results={<Results outputs={queue.outputs} zipName={`${meta.slug}.zip`} />}
+      results={
+        // Clicking a result row opens it in the before/after comparison.
+        <div className="min-w-0 [&_[data-testid=results]>ul>li]:cursor-pointer" onClick={(e) => pickResultRow(e, queue.outputs, setCompareId)}>
+          <Results outputs={queue.outputs} zipName={`${meta.slug}.zip`}>
+            {queue.outputs.length ? <Compare outputs={queue.outputs} source={(out) => sources.current.get(out.blob)} selected={compareId} onSelect={setCompareId} /> : null}
+          </Results>
+        </div>
+      }
     />
   );
 }

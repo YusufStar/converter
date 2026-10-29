@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Check, ClipboardPaste, Copy, Files, Info } from "lucide-react";
 import type { EngineProps } from "../../engines";
 import { splitName, withExt } from "../../lib/files";
-import { useT } from "../../lib/i18n";
+import { useLang, useT } from "../../lib/i18n";
+import { localeOf } from "../../lib/langs";
 import { convertDocument, EXT, type DocFrom, type DocTo } from "../../lib/document/convert";
 import { DEFAULT_PDF, type Margins, type PageSize, type PdfOptions } from "../../lib/document/html-to-pdf";
 import { useQueue, type Output } from "../../lib/use-queue";
@@ -34,6 +35,7 @@ const PREVIEW_LIMIT = 100_000;
 
 function OutputPreview({ output, kind }: { output: Output; kind: DocTo }) {
   const t = useT(s);
+  const locale = localeOf(useLang());
   const tu = useT(ui);
   const [text, setText] = useState<string | null>(null);
   const [view, setView] = useState<"preview" | "code">("preview");
@@ -100,13 +102,14 @@ function OutputPreview({ output, kind }: { output: Output; kind: DocTo }) {
       ) : (
         <TextArea readOnly value={shown} rows={14} spellCheck={false} aria-label={t("previewTitle", { name: output.name })} className="min-h-72" data-testid="text-preview" />
       )}
-      {shown !== text ? <p className="text-xs text-muted">{t("truncated", { n: PREVIEW_LIMIT.toLocaleString() })}</p> : null}
+      {shown !== text ? <p className="text-xs text-muted">{t("truncated", { n: PREVIEW_LIMIT.toLocaleString(locale) })}</p> : null}
     </div>
   );
 }
 
 export default function DocumentTool({ meta }: EngineProps) {
   const t = useT(s);
+  const locale = localeOf(useLang());
   const tu = useT(ui);
   const { from, to } = meta.preset as unknown as Preset;
   const input = INPUT[from];
@@ -193,7 +196,7 @@ export default function DocumentTool({ meta }: EngineProps) {
                 data-testid="paste-input"
               />
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted tabular-nums">
-                <span>{t("chars", { n: text.length.toLocaleString() })}</span>
+                <span>{t("chars", { n: text.length.toLocaleString(locale) })}</span>
                 {pasteError ? (
                   <span className="text-err" role="alert">
                     {pasteError}

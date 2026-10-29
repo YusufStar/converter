@@ -11,7 +11,8 @@ export default function NumberWordsTool({ meta }: EngineProps) {
   const t = useT(wordStrings);
   const uiLang = useLang();
   const [text, setText] = useState("1234.56");
-  const [lang, setLang] = useState<WordsLang>(uiLang);
+  // Spelled-out numbers exist in English and Turkish only.
+  const [lang, setLang] = useState<WordsLang>(uiLang === "tr" ? "tr" : "en");
   const [currency, setCurrency] = useState(false);
 
   const normalized = normalizeDecimal(text, lang);

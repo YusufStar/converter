@@ -5,6 +5,8 @@ import {
   clipLength,
   failureMessage,
   fitSize,
+  threadCount,
+  withThreads,
   formatTime,
   frameExt,
   framesArgs,
@@ -100,12 +102,24 @@ describe("clipLength", () => {
 
 describe("parseInfo", () => {
   it("reads duration, size, fps and codecs", () => {
-    expect(parseInfo(MP4_LOG)).toEqual({ duration: 65.5, width: 1920, height: 1080, fps: 29.97, video: "h264", audio: "aac", sampleRate: 44100 });
+    expect(parseInfo(MP4_LOG)).toEqual({
+      duration: 65.5,
+      width: 1920,
+      height: 1080,
+      fps: 29.97,
+      video: "h264",
+      profile: "High",
+      pixFmt: "yuv420p",
+      audio: "aac",
+      sampleRate: 44100,
+      channels: "mono",
+    });
   });
 
   it("swaps size for 90° rotation metadata", () => {
     const log = MP4_LOG.replace("(default)\n", "(default)\n      Side data:\n        displaymatrix: rotation of -90.00 degrees\n");
-    expect(parseInfo(log)).toMatchObject({ width: 1080, height: 1920 });
+    expect(parseInfo(log)).toMatchObject({ width: 1080, height: 1920, rotation: 90 });
+    expect(parseInfo(log.replace("-90.00", "180.00"))).toMatchObject({ width: 1920, height: 1080, rotation: 180 });
   });
 
   it("ignores MP3 cover art and handles audio-only files", () => {
@@ -113,7 +127,7 @@ describe("parseInfo", () => {
   Duration: 00:03:20.04, start: 0.025057, bitrate: 320 kb/s
   Stream #0:0: Audio: mp3 (mp3float), 48000 Hz, stereo, fltp, 320 kb/s
   Stream #0:1: Video: mjpeg (Baseline), yuvj420p(pc, bt470bg/unknown/unknown), 600x600 [SAR 1:1 DAR 1:1], 90k tbr, 90k tbn (attached pic)`;
-    expect(parseInfo(log)).toEqual({ duration: 200.04, audio: "mp3", sampleRate: 48000 });
+    expect(parseInfo(log)).toEqual({ duration: 200.04, audio: "mp3", sampleRate: 48000, channels: "stereo" });
   });
 
   it("returns nothing for non-media", () => {
@@ -308,5 +322,26 @@ describe("isAudioFile", () => {
     expect(isAudioFile({ name: "a.flac", type: "" })).toBe(true);
     expect(isAudioFile({ name: "a.bin", type: "audio/x-foo" })).toBe(true);
     expect(isAudioFile({ name: "a.mp4", type: "video/mp4" })).toBe(false);
+  });
+});
+
+describe("withThreads", () => {
+  it("pins decoder, encoder and filter pools", () => {
+    expect(withThreads(["-ss", "1", "-i", "/in/a.mp4", "-c:v", "libx264", "/out/o.mp4"], 4)).toEqual([
+      "-filter_threads", "2", "-filter_complex_threads", "2",
+      "-ss", "1", "-threads", "4", "-i", "/in/a.mp4", "-c:v", "libx264", "-threads", "4", "/out/o.mp4",
+    ]);
+  });
+
+  it("splits decoder threads across inputs", () => {
+    const args = withThreads(["-i", "a", "-i", "b", "-i", "c", "out.mp4"], 4);
+    expect(args.filter((_, i) => args[i + 1] === "-i").length).toBe(3);
+    expect(args.slice(4, 7)).toEqual(["-threads", "1", "-i"]);
+  });
+
+  it("caps the per-pool thread count", () => {
+    expect(threadCount(32)).toBe(4);
+    expect(threadCount(2)).toBe(2);
+    expect(threadCount(undefined)).toBe(4);
   });
 });

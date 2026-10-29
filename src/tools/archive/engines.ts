@@ -1,11 +1,12 @@
-import { lazy } from "react";
-import { ArchiveRestore, FileArchive, FolderArchive, FolderOpen, PackageOpen } from "lucide-react";
+import { ArchiveRestore, FileArchive, FileBox, FolderArchive, FolderOpen, PackageOpen, PackagePlus, Package } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
+import { lazyEngine } from "../../lib/lazy-engine";
 
 export const engines: EngineMap = {
-  "archive-zip": lazy(() => import("./zip-tool")),
-  "archive-extract": lazy(() => import("./extract-tool")),
-  "archive-gzip": lazy(() => import("./gzip-tool")),
+  "archive-zip": lazyEngine(() => import("./zip-tool")),
+  "archive-extract": lazyEngine(() => import("./extract-tool")),
+  "archive-gzip": lazyEngine(() => import("./gzip-tool")),
+  "archive-create": lazyEngine(() => import("./create-tool")),
 };
 
 export const icons: IconMap = {
@@ -14,4 +15,7 @@ export const icons: IconMap = {
   "tar-extractor": FolderOpen,
   "gzip-compress": FileArchive,
   "gzip-decompress": ArchiveRestore,
+  "rar-extractor": Package,
+  "7z-extractor": FileBox,
+  "7z-creator": PackagePlus,
 };

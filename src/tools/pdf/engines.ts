@@ -1,18 +1,18 @@
-import { lazy } from "react";
+import { lazyEngine } from "../../lib/lazy-engine";
 import { Combine, FileImage, FileMinus, FileOutput, FileText, Hash, ImageDown, Images, LayoutGrid, RotateCw, Scissors, Shrink, Stamp, Tags } from "lucide-react";
 import type { EngineMap, IconMap } from "../../engines";
 
 export const engines: EngineMap = {
-  "pdf-merge": lazy(() => import("./merge-tool")),
-  "pdf-split": lazy(() => import("./split-tool")),
-  "pdf-organize": lazy(() => import("./organize-tool")),
-  "pdf-pages": lazy(() => import("./pages-tool")),
-  "pdf-images": lazy(() => import("./images-tool")),
-  "pdf-compress": lazy(() => import("./compress-tool")),
-  "pdf-numbers": lazy(() => import("./numbers-tool")),
-  "pdf-watermark": lazy(() => import("./watermark-tool")),
-  "pdf-text": lazy(() => import("./text-tool")),
-  "pdf-metadata": lazy(() => import("./metadata-tool")),
+  "pdf-merge": lazyEngine(() => import("./merge-tool")),
+  "pdf-split": lazyEngine(() => import("./split-tool")),
+  "pdf-organize": lazyEngine(() => import("./organize-tool")),
+  "pdf-pages": lazyEngine(() => import("./pages-tool")),
+  "pdf-images": lazyEngine(() => import("./images-tool")),
+  "pdf-compress": lazyEngine(() => import("./compress-tool")),
+  "pdf-numbers": lazyEngine(() => import("./numbers-tool")),
+  "pdf-watermark": lazyEngine(() => import("./watermark-tool")),
+  "pdf-text": lazyEngine(() => import("./text-tool")),
+  "pdf-metadata": lazyEngine(() => import("./metadata-tool")),
 };
 
 export const icons: IconMap = {

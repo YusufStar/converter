@@ -69,7 +69,9 @@ export default function PercentTool({ meta }: EngineProps) {
   const lang = useLang();
   const [decimals, setDecimals] = useState<Decimals>("auto");
   const fmt = formatters(lang, decimals);
-  const pct = (n: number) => (lang === "tr" ? `%${fmt.show(n)}` : `${fmt.show(n)}%`);
+  // Turkish writes %50; French, German and Spanish put a (no-break) space before the sign.
+  const pct = (n: number) =>
+    lang === "tr" ? `%${fmt.show(n)}` : lang === "fr" || lang === "de" || lang === "es" ? `${fmt.show(n)}\u00a0%` : `${fmt.show(n)}%`;
   return (
     <ToolLayout
       meta={meta}

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import type { EngineProps } from "../../engines";
 import { useT } from "../../lib/i18n";
-import { renderToCanvas } from "../../lib/image/convert";
-import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL } from "../../lib/image/formats";
-import { makeAnimatedGif } from "../../lib/image/gif";
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, inputKind } from "../../lib/image/formats";
+import { writeGif } from "../../lib/image/gif";
+import { concurrency, runJob, warmPool } from "../../lib/image/pool";
 import { DEFAULT_RESIZE } from "../../lib/image/resize";
+import { mapPool } from "../../lib/pool";
 import { useQueue } from "../../lib/use-queue";
 import { FileInput } from "../../ui/files";
 import { ColorField, Field, Segmented, Slider, Switch } from "../../ui/kit";
@@ -23,37 +24,25 @@ export default function GifMakerTool({ meta }: EngineProps) {
   const [loop, setLoop] = useState(true);
   const [bg, setBg] = useState("#ffffff");
 
+  const workers = concurrency(queue.items.some((it) => inputKind(it.file) === "raw"));
+  useEffect(() => warmPool([], workers), [workers]);
+
   const run = () =>
     queue.runAll(async (files, ctx) => {
       const resize = width ? { ...DEFAULT_RESIZE, mode: "dimensions" as const, width, height: null, noEnlarge: true } : DEFAULT_RESIZE;
-      let frameW = 0;
-      let frameH = 0;
-      const frames: ImageData[] = [];
-      for (let i = 0; i < files.length; i++) {
-        if (ctx.signal.aborted) throw new DOMException("Cancelled", "AbortError");
-        const src = await renderToCanvas(files[i], { resize, rotate: 0, flipH: false, flipV: false, background: null });
-        if (i === 0) {
-          frameW = src.width;
-          frameH = src.height;
-        }
-        // Every frame is centred (contained) on the first frame's canvas.
-        const c = document.createElement("canvas");
-        c.width = frameW;
-        c.height = frameH;
-        const g = c.getContext("2d")!;
-        g.fillStyle = bg;
-        g.fillRect(0, 0, frameW, frameH);
-        const f = Math.min(frameW / src.width, frameH / src.height);
-        const w = Math.round(src.width * f);
-        const h = Math.round(src.height * f);
-        g.imageSmoothingQuality = "high";
-        g.drawImage(src, Math.round((frameW - w) / 2), Math.round((frameH - h) / 2), w, h);
-        frames.push(g.getImageData(0, 0, frameW, frameH));
-        ctx.progress(((i + 1) / files.length) * 0.7);
-      }
-      const bytes = await makeAnimatedGif(frames, { delay, loop });
+      // The first frame sets the canvas; every other frame is centred (contained) on it, in parallel workers.
+      const first = await runJob("gifFrame", files[0], [{ resize, background: bg }], resize, ctx.signal);
+      const frame = { width: first.width, height: first.height };
+      let done = 1;
+      ctx.progress(0.7 / files.length);
+      const rest = await mapPool(files.slice(1), workers, async (f) => {
+        const q = await runJob("gifFrame", f, [{ resize, background: bg, frame }], resize, ctx.signal);
+        ctx.progress((++done / files.length) * 0.7);
+        return q;
+      });
+      const bytes = await writeGif([first, ...rest], { delay, loop });
       ctx.progress(1);
-      return [{ name: "animation.gif", blob: new Blob([bytes as BlobPart], { type: "image/gif" }), width: frameW, height: frameH }];
+      return [{ name: "animation.gif", blob: new Blob([bytes as BlobPart], { type: "image/gif" }), width: frame.width, height: frame.height }];
     });
 
   return (

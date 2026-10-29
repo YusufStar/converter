@@ -109,9 +109,16 @@ export interface MediaInfo {
   fps?: number;
   /** Video codec name, e.g. "h264". */
   video?: string;
+  /** Codec profile, e.g. "High". */
+  profile?: string;
+  pixFmt?: string;
+  /** Clockwise display rotation from the container's matrix (0/90/180/270). */
+  rotation?: number;
   /** Audio codec name, e.g. "aac". */
   audio?: string;
   sampleRate?: number;
+  /** Channel layout, e.g. "stereo". */
+  channels?: string;
 }
 
 /** Reads `ffmpeg -i file` output (stream info printed to stderr). */
@@ -123,6 +130,10 @@ export function parseInfo(log: string): MediaInfo {
   const video = log.split("\n").find((l) => /Stream #\d+:\d+.*: Video: /.test(l) && !l.includes("(attached pic)"));
   if (video) {
     info.video = /Video: (\w+)/.exec(video)?.[1];
+    const profile = /Video: \w+ \(([^)]+)\)/.exec(video)?.[1];
+    if (profile && !profile.includes(" / ")) info.profile = profile;
+    const pix = /Video: [^,]*, (\w+)/.exec(video)?.[1];
+    if (pix) info.pixFmt = pix;
     const size = /\b(\d{2,5})x(\d{2,5})\b/.exec(video);
     if (size) {
       info.width = Number(size[1]);
@@ -131,14 +142,17 @@ export function parseInfo(log: string): MediaInfo {
     const fps = /([\d.]+) fps/.exec(video);
     if (fps) info.fps = Number(fps[1]);
     const rot = /rotation of (-?[\d.]+) degrees/.exec(log);
-    if (rot && Math.abs(Number(rot[1])) % 180 === 90 && info.width && info.height) {
-      [info.width, info.height] = [info.height, info.width];
+    if (rot) {
+      // The display matrix angle is counter-clockwise.
+      info.rotation = (((-Math.round(Number(rot[1]) / 90) * 90) % 360) + 360) % 360;
+      if (info.rotation % 180 === 90 && info.width && info.height) [info.width, info.height] = [info.height, info.width];
     }
   }
-  const audio = /Stream #\d+:\d+.*: Audio: (\w+)[^\n]*?(\d+) Hz/.exec(log);
+  const audio = /Stream #\d+:\d+.*: Audio: (\w+)[^\n]*?(\d+) Hz(?:, ([\w.()]+))?/.exec(log);
   if (audio) {
     info.audio = audio[1];
     info.sampleRate = Number(audio[2]);
+    if (audio[3]) info.channels = audio[3];
   }
   return info;
 }
@@ -152,6 +166,35 @@ export function failureMessage(lines: string[]): string {
     .map((l) => l.trim())
     .filter((l) => l !== "Conversion failed!" && !l.startsWith("Aborted("));
   return useful.slice(-2).join(" · ") || "FFmpeg failed";
+}
+
+// ---------------------------------------------------------------- threads
+
+/**
+ * Threads per pool for the multi-threaded core. Measured (10 s 720p → H.264 veryfast,
+ * 10-core M-series): 1 thread 8.9 s, 4 threads 2.3 s. x264 at 6+ threads crashes its
+ * lookahead workers in this wasm build ("function signature mismatch") and silently
+ * drops to one thread, so 4 is the cap; more decoder/filter threads gained nothing.
+ */
+export const threadCount = (cores: number | undefined) => Math.max(1, Math.min(4, cores || 4));
+
+/**
+ * Pins every pool ffmpeg would otherwise size from the CPU count (decoders, encoders,
+ * filter graphs) — auto threading on an 8+ core machine hits the x264 crash above and
+ * can exhaust the core's 32 pre-spawned workers (a deadlock). `args` ends with the
+ * (single) output path.
+ */
+export function withThreads(args: string[], n: number): string[] {
+  const inputs = args.filter((a) => a === "-i").length;
+  const dec = String(Math.max(1, Math.floor(n / Math.max(1, inputs))));
+  const filt = String(Math.max(1, Math.ceil(n / 2)));
+  const out = ["-filter_threads", filt, "-filter_complex_threads", filt];
+  args.forEach((a, i) => {
+    if (a === "-i") out.push("-threads", dec);
+    else if (i === args.length - 1) out.push("-threads", String(n));
+    out.push(a);
+  });
+  return out;
 }
 
 // ---------------------------------------------------------------- sizes
@@ -225,7 +268,7 @@ function scaleFilter(info: MediaInfo, height: number | null): string {
   return `scale=${s.width}:${s.height}`;
 }
 
-function videoCodec(o: VideoOptions): string[] {
+export function videoCodec(o: Pick<VideoOptions, "format" | "quality" | "videoKbps">): string[] {
   const kbps = o.videoKbps ?? null;
   switch (o.format) {
     case "webm":
@@ -246,7 +289,7 @@ function videoCodec(o: VideoOptions): string[] {
   }
 }
 
-function audioCodec(format: VideoOptions["format"], kbps: number): string[] {
+export function audioCodec(format: VideoOptions["format"], kbps: number): string[] {
   const codec = format === "webm" ? "libopus" : format === "avi" ? "libmp3lame" : "aac";
   return ["-c:a", codec, "-b:a", `${kbps}k`];
 }
