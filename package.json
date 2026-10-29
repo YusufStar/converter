@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "engines": {
+    "node": ">=22.12"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
