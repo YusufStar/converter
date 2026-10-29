@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import UPNG from "upng-js";
 import { readGroups, summarize } from "../src/lib/image-extra/exif";
-import { downloadAll, downloadOne, fixture, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, fixture, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 const pick = (page: Page, name: string) => page.getByRole("radio", { name, exact: true }).click();
 const num = (page: Page, name: string) => page.getByRole("spinbutton", { name, exact: true });

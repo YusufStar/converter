@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
-import { downloadOne, fixture, openTool, runAndWait, trackErrors, uploadFiles } from "./helpers";
+import { downloadOne, fixture, openTool, runAndWait, trackErrors, uploadFiles, test } from "./helpers";
 
 // Fixtures: pdf-extra-form.pdf = every AcroForm field type (page 1) + "city" (page 2);
 // pdf-extra-sign.pdf = A4 page + landscape page with an offset crop box and /Rotate 90;

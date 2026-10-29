@@ -1,6 +1,6 @@
 // Background removal maths that needs no browser: the model, image → tensor,
 // network output → alpha mask, and edge refinement. Unit-tested in Node.
-import model from "./model.json";
+import { bytes as modelBytes, file as modelFile } from "./model.json";
 
 export interface ModelInfo {
   url: string;
@@ -20,8 +20,8 @@ export interface ModelInfo {
  * BiRefNet lite fp16 (MIT; fails on ORT 1.31's WebGPU kernels and runs out of memory on wasm).
  */
 export const MODEL: ModelInfo = {
-  url: `/models/${model.file}`,
-  bytes: model.bytes,
+  url: `/models/${modelFile}`,
+  bytes: modelBytes,
   size: 1024,
   mean: [0.5, 0.5, 0.5],
   std: [1, 1, 1],

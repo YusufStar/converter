@@ -1,7 +1,7 @@
 import { createHash, createHmac, generateKeyPairSync, randomBytes, sign } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
-import { downloadAll, downloadOne, fixture, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { expect, type Page } from "@playwright/test";
+import { downloadAll, downloadOne, fixture, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 test.use({
   permissions: ["clipboard-read", "clipboard-write"],

@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { expect, type Page } from "@playwright/test";
+import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 // The first run of every test downloads + compiles the 31 MB ffmpeg core.
 test.setTimeout(240_000);

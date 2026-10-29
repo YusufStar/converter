@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { promisify } from "node:util";
+import { brotliCompress, constants, gzip } from "node:zlib";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
@@ -81,6 +83,37 @@ async function engineSources(root: string): Promise<Map<string, string>> {
   return map;
 }
 
+const brotli = promisify(brotliCompress);
+const gz = promisify(gzip);
+
+/**
+ * Writes .br and .gz next to every compressible file of 32 KB or more (Caddy serves them with
+ * `precompressed`), so the 32 MB video engine travels as ~8 MB without compressing it again on
+ * every request. Files that barely shrink (the fp16 model, .gz data) are left alone.
+ */
+async function precompress(dir: string) {
+  const files: string[] = [];
+  for (const entry of await readdir(dir, { recursive: true, withFileTypes: true })) {
+    const path = join(entry.parentPath, entry.name);
+    if (entry.isFile() && /\.(m?js|css|wasm|json|svg|onnx|webmanifest)$/.test(entry.name)) files.push(path);
+  }
+  const queue = [...files];
+  await Promise.all(
+    Array.from({ length: 4 }, async () => {
+      for (let path = queue.shift(); path; path = queue.shift()) {
+        const data = await readFile(path);
+        if (data.length < 32 * 1024) continue;
+        const [br, gzipped] = await Promise.all([
+          brotli(data, { params: { [constants.BROTLI_PARAM_QUALITY]: 9, [constants.BROTLI_PARAM_SIZE_HINT]: data.length } }),
+          gz(data, { level: 9 }),
+        ]);
+        if (br.length < data.length * 0.9) await writeFile(`${path}.br`, br);
+        if (gzipped.length < data.length * 0.9) await writeFile(`${path}.gz`, gzipped);
+      }
+    }),
+  );
+}
+
 interface ManifestChunk {
   file: string;
   imports?: string[];
@@ -93,6 +126,7 @@ interface ManifestChunk {
  *   chunk, so a deep link doesn't wait on "Loading engine…"; the root index.html stays English
  * - sitemap.xml lists the English pages only
  * - robots.txt, manifest.webmanifest (with OS file handlers), sw.js (offline)
+ * - .br/.gz copies of the big files for Caddy's `precompressed`
  * - optional privacy-friendly analytics script from ANALYTICS_SRC (+ ANALYTICS_ATTRS)
  */
 export function site(): Plugin {
@@ -200,6 +234,7 @@ export function site(): Plugin {
       const sw = await readFile(join(root, "src/pwa/sw.js"), "utf8");
       await mkdir(dirname(join(outDir, "sw.js")), { recursive: true });
       await writeFile(join(outDir, "sw.js"), `const BUILD = ${JSON.stringify({ version, shell, assets })};\n${sw}`);
+      await precompress(outDir);
     },
   };
 }

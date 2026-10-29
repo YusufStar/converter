@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
-import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 // Fixtures: sample.pdf = 3 A4 pages ("Page N of the sample document");
 // pdf-sizes.pdf = pages of 300×400, 400×300, 500×500 pt; pdf-scan.pdf = a photo on 2 small pages;

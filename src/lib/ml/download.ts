@@ -3,7 +3,7 @@
 
 export type OnBytes = (loaded: number, total: number) => void;
 
-/** Fetches `url` into memory, reporting bytes as they arrive. `expected` stands in when the server sends no length. */
+/** Fetches `url` into memory, reporting bytes as they arrive against `expected` (or Content-Length). */
 export async function download(url: string, onBytes?: OnBytes, expected = 0): Promise<Uint8Array> {
   let res: Response;
   try {
@@ -12,7 +12,8 @@ export async function download(url: string, onBytes?: OnBytes, expected = 0): Pr
     throw new Error("Couldn't download the data this tool needs — check your connection and try again");
   }
   if (!res.ok || !res.body) throw new Error(`Couldn't download the data this tool needs (HTTP ${res.status})`);
-  const total = Number(res.headers.get("content-length")) || expected;
+  // A known size wins: with a precompressed response Content-Length counts encoded bytes.
+  const total = expected || Number(res.headers.get("content-length"));
   const reader = res.body.getReader();
   // Filled in place when the size is known, so a 100 MB model never sits in memory twice.
   let buf = new Uint8Array(total || 1 << 20);

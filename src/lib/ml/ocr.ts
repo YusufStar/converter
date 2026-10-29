@@ -1,6 +1,6 @@
 // OCR helpers that need no browser: languages, sizing, grayscale input for
 // Tesseract and the searchable-PDF text layer (pdf-lib, so Node tests can run it).
-import tessdata from "./tessdata.json";
+import { dir as tessdataDir } from "./tessdata.json";
 import { loadPdf, savePdf } from "../pdf/edit";
 import { normRotation, toUserSpace, visualSize, type Box } from "../pdf/stamp";
 
@@ -54,7 +54,7 @@ export function defaultLangs(uiLang: string): string[] {
  * from our own origin: scripts/fetch-assets.mjs places the pinned files (tessdata.json, SHA-256
  * checked) in public/ before dev and build.
  */
-export const langDataUrl = (code: string) => `/${tessdata.dir}/${code}.traineddata.gz`;
+export const langDataUrl = (code: string) => `/${tessdataDir}/${code}.traineddata.gz`;
 
 export type Psm = "auto" | "block" | "sparse";
 /** Tesseract page segmentation modes behind the three choices. */

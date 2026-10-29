@@ -39,9 +39,11 @@
 
 	root * {{.DIST_DIR}}
 
+	# .br/.gz copies written at build time (build/site.ts); `encode` covers everything else.
 	file_server {
 		hide .git
 		hide .env*
+		precompressed br gzip
 	}
 
 	encode {

@@ -1,7 +1,27 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, type Page } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 import { unzipSync } from "fflate";
+
+/**
+ * Every spec's `test`. The app must never fetch anything from another origin (engines, models,
+ * OCR data and fonts are all served by the site itself), so any such request fails the test.
+ */
+export const test = base.extend<{ sameOriginOnly: void }>({
+  sameOriginOnly: [
+    async ({ page, baseURL }, use) => {
+      const origin = new URL(baseURL!).origin;
+      const foreign: string[] = [];
+      page.on("request", (req) => {
+        const url = new URL(req.url());
+        if (url.protocol.startsWith("http") && url.origin !== origin) foreign.push(req.url());
+      });
+      await use();
+      expect(foreign, "requests to other origins").toEqual([]);
+    },
+    { auto: true },
+  ],
+});
 
 export const fixture = (name: string) => join(import.meta.dirname, "fixtures", name);
 

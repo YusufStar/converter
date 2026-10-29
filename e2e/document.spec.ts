@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
-import { downloadAll, downloadOne, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 const decode = (b: Uint8Array) => new TextDecoder().decode(b);
 

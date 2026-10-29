@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { expect } from "@playwright/test";
+import { downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 test("home lists converters and sidebar navigates", async ({ page }) => {
   const errors = trackErrors(page);

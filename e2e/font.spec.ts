@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import fonteditor, { woff2 } from "fonteditor-core";
-import { downloadAll, downloadOne, fixture, openTool, runAndWait, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, fixture, openTool, runAndWait, trackErrors, uploadFiles, test } from "./helpers";
 
 await woff2.init();
 

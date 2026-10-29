@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { gunzipSync, gzipSync, unzipSync, zipSync } from "fflate";
 import factory from "libarchive.js/src/webworker/wasm-gen/libarchive.js";
 import { bindLibarchive } from "../src/lib/archive/libarchive-core";
-import { downloadAll, downloadOne, fixture, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, fixture, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const dec = (b: Uint8Array) => new TextDecoder().decode(b);

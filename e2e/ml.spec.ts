@@ -1,6 +1,6 @@
-import { chromium, expect, test as base, type Page } from "@playwright/test";
+import { chromium, expect, type Page } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
-import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 // Fixtures: ml-ocr-en.png / ml-ocr-tr.png = two lines of English / Turkish text;
 // ml-scan.pdf = 2 image-only pages (page 2 has /Rotate 90, drawn to read upright);
@@ -10,22 +10,6 @@ import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, track
 
 const decode = (b: Uint8Array) => new TextDecoder().decode(b);
 const radio = (page: Page, name: string) => page.getByRole("radio", { name, exact: true }).click();
-
-// Model and language data come from our own origin: no request may leave it (CDNs, Hugging Face).
-const test = base.extend<{ sameOrigin: void }>({
-  sameOrigin: [
-    async ({ page }, use) => {
-      const foreign: string[] = [];
-      page.on("request", (req) => {
-        const { protocol, hostname } = new URL(req.url());
-        if (protocol.startsWith("http") && hostname !== "localhost") foreign.push(req.url());
-      });
-      await use();
-      expect(foreign).toEqual([]);
-    },
-    { auto: true },
-  ],
-});
 
 async function noHorizontalScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

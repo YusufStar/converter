@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
-import { fixture, openTool, trackErrors } from "./helpers";
+import { expect, type Page } from "@playwright/test";
+import { fixture, openTool, trackErrors, test } from "./helpers";
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 

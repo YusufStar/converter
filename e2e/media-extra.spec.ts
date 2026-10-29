@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { downloadAll, downloadOne, fixture, openTool, runAndWait, sniff, trackErrors, uploadFiles, type Downloaded } from "./helpers";
+import { expect, type Page, type TestInfo } from "@playwright/test";
+import { downloadAll, downloadOne, fixture, openTool, runAndWait, sniff, trackErrors, uploadFiles, type Downloaded, test } from "./helpers";
 
 // The first run of every test downloads + compiles the ~31 MB ffmpeg core.
 test.setTimeout(240_000);

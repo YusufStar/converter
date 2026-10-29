@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { downloadOne, fixture, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { expect } from "@playwright/test";
+import { downloadOne, fixture, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 import { readFile } from "node:fs/promises";
 
 const sidebar = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "All converters" });

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import * as XLSX from "xlsx";
-import { downloadAll, downloadOne, fixture, openTool, runAndWait, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, fixture, openTool, runAndWait, trackErrors, uploadFiles, test } from "./helpers";
 
 const BOM = [0xef, 0xbb, 0xbf];
 /** UTF-8 decode; TextDecoder drops the BOM, which tests assert on the raw bytes. */

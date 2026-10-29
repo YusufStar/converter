@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
-import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles } from "./helpers";
+import { downloadAll, downloadOne, imageSize, openTool, runAndWait, sniff, trackErrors, uploadFiles, test } from "./helpers";
 
 // The image worker's URL: its source path in dev, a hashed chunk in the production build.
 const IMAGE_WORKER = /lib\/image\/worker|\/assets\/worker-[\w-]+\.js$/;
