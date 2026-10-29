@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sidebar: var(--sidebar);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-ok: var(--ok);
+  --color-err: var(--err);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-rise: rise 0.35s var(--ease-out-soft) both;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+}
+
+/* Light: warm paper + graphite ink + tangerine signal. */
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface-2: #efede8;
+  --sidebar: #eceae4;
+  --fg: #1d1c1a;
+  --muted: #6b675f;
+  --line: #e2dfd7;
+  --line-strong: #cbc7bc;
+  --accent: #ff6b2c;
+  --accent-fg: #1a0f08;
+  --accent-soft: #ffe7da;
+  --accent-text: #c2410c;
+  --ok: #15803d;
+  --err: #dc2626;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #121110;
+  --surface: #1a1917;
+  --surface-2: #23211e;
+  --sidebar: #0d0c0b;
+  --fg: #f3f1ec;
+  --muted: #9d988e;
+  --line: #2a2825;
+  --line-strong: #3b3834;
+  --accent: #ff6b2c;
+  --accent-fg: #1a0f08;
+  --accent-soft: #3a2115;
+  --accent-text: #ff8d5c;
+  --ok: #4ade80;
+  --err: #f87171;
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Range input in the accent colour, consistent across engines. */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* Subtle checkerboard behind transparent previews. */
+.checker {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, var(--surface-2) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-2) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-2) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-2) 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
